@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Task } from "../types";
+import type { Task } from "../types/types";
 import { LocalStorageService } from "../services/localStorageService";
 
 export function useTasks(columnId: string) {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Column } from "../types";
+import type { Column } from "../types/types";
 import { LocalStorageService } from "../services/localStorageService";
 
 export function useColumns(boardId: string) {
