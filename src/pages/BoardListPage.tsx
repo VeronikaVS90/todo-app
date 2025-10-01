@@ -1,11 +1,12 @@
 import React from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { observer } from "mobx-react-lite";
 import {
   Container,
   TextField,
   Button,
   List,
-  ListItem,
+  ListItemButton,
   CircularProgress,
   AppBar,
   Toolbar,
@@ -60,7 +61,13 @@ const BoardListPage = observer(() => {
         ) : (
           <List>
             {data?.map((b) => (
-              <ListItem key={b.id}>{b.title}</ListItem>
+              <ListItemButton
+                key={b.id}
+                component={RouterLink}
+                to={`/boards/${b.id}`}
+              >
+                {b.title}
+              </ListItemButton>
             ))}
           </List>
         )}

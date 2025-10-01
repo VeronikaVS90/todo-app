@@ -1,8 +1,10 @@
 import React from "react";
 import { observer } from "mobx-react-lite";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useStore } from "./store/useStore";
 import BoardListPage from "./pages/BoardListPage";
+import { BoardPage } from "./pages/BoardPage";
 
 const App = observer(() => {
   const { ui } = useStore();
@@ -18,7 +20,13 @@ const App = observer(() => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BoardListPage />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<BoardListPage />} />
+
+          <Route path="/boards/:boardId" element={<BoardPage />} />
+        </Routes>
+      </BrowserRouter>
     </ThemeProvider>
   );
 });
