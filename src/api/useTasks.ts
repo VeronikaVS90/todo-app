@@ -35,5 +35,24 @@ export function useTasks(columnId: string) {
     },
   });
 
-  return { ...query, create };
+  const update = useMutation<
+    Task,
+    Error,
+    { id: string; title?: string; description?: string; columnId?: string }
+  >({
+    mutationFn: async ({ id, ...updates }) => {
+      const { data } = await api.put<Task>(`/tasks/${id}`, updates);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", columnId] }),
+  });
+
+  const remove = useMutation<void, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      await api.delete<Task>(`/tasks/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", columnId] }),
+  });
+
+  return { ...query, create, update, remove };
 }
