@@ -12,7 +12,7 @@ export function useColumns(boardId: string) {
     queryKey: ["columns", boardId],
     queryFn: async () => {
       try {
-        const { data } = await api.get<Column[]>(`/boards/${boardId}/columns`);
+        const { data } = await api.get<Column[]>(`/columns?boardId=${boardId}`);
         LocalStorageService.set(LS_KEY, data);
         return data;
       } catch {
@@ -23,10 +23,10 @@ export function useColumns(boardId: string) {
 
   const create = useMutation<Column, Error, { title: string }>({
     mutationFn: async (payload) => {
-      const { data } = await api.post<Column>(
-        `/boards/${boardId}/columns`,
-        payload
-      );
+      const { data } = await api.post<Column>(`/columns`, {
+        ...payload,
+        boardId,
+      });
       return data;
     },
     onSuccess: () => {
