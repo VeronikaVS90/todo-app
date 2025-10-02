@@ -12,7 +12,7 @@ export function useTasks(columnId: string) {
     queryKey: ["tasks", columnId],
     queryFn: async () => {
       try {
-        const { data } = await api.get<Task[]>(`/columns/${columnId}/tasks`);
+        const { data } = await api.get<Task[]>(`/tasks?columnId=${columnId}`);
         LocalStorageService.set(LS_KEY, data);
         return data;
       } catch {
@@ -27,10 +27,7 @@ export function useTasks(columnId: string) {
     { title: string; description?: string }
   >({
     mutationFn: async (payload) => {
-      const { data } = await api.post<Task>(
-        `/columns/${columnId}/tasks`,
-        payload
-      );
+      const { data } = await api.post<Task>(`/tasks`, { ...payload, columnId });
       return data;
     },
     onSuccess: () => {
