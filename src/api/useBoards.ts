@@ -23,5 +23,20 @@ export function useBoards() {
     },
   });
 
-  return { ...query, create };
+  const update = useMutation<Board, Error, { id: Board["id"]; title: string }>({
+    mutationFn: async ({ id, ...updates }) => {
+      const { data } = await api.put<Board>(`/boards/${id}`, updates);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["boards"] }),
+  });
+
+  const remove = useMutation<void, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      await api.delete(`/boards/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["boards"] }),
+  });
+
+  return { ...query, create, update, remove };
 }

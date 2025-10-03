@@ -39,7 +39,7 @@ export function TaskCard({ task, columnId }: { task: Task; columnId: string }) {
             justifyContent="space-between"
             gap={1}
           >
-            <span onDoubleClick={() => setIsEditing(true)}>{task.title}</span>
+            <span onClick={() => setIsEditing(true)}>{task.title}</span>
             <IconButton
               size="small"
               onClick={() => remove.mutate({ id: task.id })}
