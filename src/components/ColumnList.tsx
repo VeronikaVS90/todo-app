@@ -27,7 +27,6 @@ export function ColumnList({ boardId }: Props) {
         </Card>
       ))}
 
-      {/* Add new column */}
       <Card style={{ width: 250, padding: "1rem" }}>
         <TextField
           label="New column"

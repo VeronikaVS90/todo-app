@@ -1,6 +1,7 @@
 export type Board = {
   id: string;
   title: string;
+  createdAt?: string;
 };
 
 export type Column = {
@@ -15,4 +16,5 @@ export type Task = {
   description?: string;
   columnId: string;
   done: boolean;
+  position?: number;
 };

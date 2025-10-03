@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-
-export type Board = { id: string; title: string; createdAt?: string };
+import type { Board } from "../types/types";
 
 export function useBoards() {
   const qc = useQueryClient();

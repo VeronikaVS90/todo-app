@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTasks } from "../api/useTasks";
 import type { Task } from "../types/types";
+import { Card, CardContent, IconButton, TextField, Box } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export function TaskCard({ task, columnId }: { task: Task; columnId: string }) {
   const { update, remove } = useTasks(columnId);
@@ -8,30 +10,46 @@ export function TaskCard({ task, columnId }: { task: Task; columnId: string }) {
   const [title, setTitle] = useState(task.title);
 
   const handleSave = () => {
-    update.mutate({ id: task.id, title });
+    const next = title.trim();
+    if (!next || next === task.title) {
+      setIsEditing(false);
+      return;
+    }
+    update.mutate({ id: task.id, title: next });
     setIsEditing(false);
   };
 
   return (
-    <div className="task-card border p-2 rounded bg-white shadow mb-2">
-      {isEditing ? (
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleSave}
-          autoFocus
-          className="border px-1"
-        />
-      ) : (
-        <span onDoubleClick={() => setIsEditing(true)}>{task.title}</span>
-      )}
-
-      <button
-        className="ml-2 text-red-500"
-        onClick={() => remove.mutate({ id: task.id })}
-      >
-        X
-      </button>
-    </div>
+    <Card variant="outlined">
+      <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+        {isEditing ? (
+          <TextField
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            size="small"
+            autoFocus
+            fullWidth
+          />
+        ) : (
+          <Box
+            display="flex"
+            alignItems="start"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <span onDoubleClick={() => setIsEditing(true)}>{task.title}</span>
+            <IconButton
+              size="small"
+              onClick={() => remove.mutate({ id: task.id })}
+              aria-label="delete task"
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useBoards } from "../api/useBoards";
-import { ColumnList } from "../components/ColumnList";
+import { Board } from "../components/Board";
 
 export function BoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
@@ -16,7 +16,7 @@ export function BoardPage() {
   return (
     <div style={{ padding: "1rem" }}>
       <h2>{board.title}</h2>
-      <ColumnList boardId={boardId} />
+      <Board boardId={boardId} />
     </div>
   );
 }
