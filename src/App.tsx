@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useStore } from "./store/useStore";
 import BoardListPage from "./pages/BoardListPage";
 import { BoardPage } from "./pages/BoardPage";
+import Header from "./components/Header";
 
 const App = observer(() => {
   const { ui } = useStore();
@@ -21,6 +22,7 @@ const App = observer(() => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
+        <Header />
         <Routes>
           <Route path="/" element={<BoardListPage />} />
 

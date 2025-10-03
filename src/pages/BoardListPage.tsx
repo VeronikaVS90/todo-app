@@ -8,18 +8,12 @@ import {
   List,
   ListItemButton,
   CircularProgress,
-  AppBar,
-  Toolbar,
-  IconButton,
 } from "@mui/material";
 import { useBoards } from "../api/useBoards";
-import { useStore } from "../store/useStore";
-import Brightness4Icon from "@mui/icons-material/Brightness4";
 
 const BoardListPage = observer(() => {
   const { data, isLoading, error, create } = useBoards();
   const [title, setTitle] = React.useState("");
-  const store = useStore();
 
   const onCreate = () => {
     if (!title.trim()) return;
@@ -29,15 +23,6 @@ const BoardListPage = observer(() => {
 
   return (
     <>
-      <AppBar position="static">
-        <Toolbar>
-          <div style={{ flex: 1 }}>My To Do List</div>
-          <IconButton color="inherit" onClick={() => store.ui.toggleTheme()}>
-            <Brightness4Icon />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-
       <Container style={{ marginTop: 24 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <TextField
