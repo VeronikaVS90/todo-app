@@ -34,5 +34,29 @@ export function useColumns(boardId: string) {
     },
   });
 
-  return { ...query, create };
+  const update = useMutation<
+    Column,
+    Error,
+    {
+      id: string;
+      title: string;
+    }
+  >({
+    mutationFn: async ({ id, ...updates }) => {
+      const { data } = await api.put<Column>(`/columns/${id}`, updates);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["columns", boardId] });
+    },
+  });
+
+  const remove = useMutation<void, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      await api.delete(`/columns/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["columns", boardId] }),
+  });
+
+  return { ...query, create, update, remove };
 }
