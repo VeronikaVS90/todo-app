@@ -1,4 +1,5 @@
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import { useState } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
@@ -22,7 +23,7 @@ interface ColumnProps {
 
 export function Column({ column, tasks }: ColumnProps) {
   const { create } = useTasks(column.id);
-  const { update } = useColumns(column.boardId);
+  const { update, remove } = useColumns(column.boardId);
   const [newTitle, setNewTitle] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(column.title);
@@ -65,6 +66,17 @@ export function Column({ column, tasks }: ColumnProps) {
               <span onClick={() => setIsEditing(true)}>{column.title}</span>
               <IconButton onClick={() => setIsEditing(true)} size="small">
                 <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  remove.mutate({ id: column.id });
+                }}
+                aria-label="delete column"
+                size="small"
+                disabled={remove.isPending}
+              >
+                <DeleteIcon fontSize="small" />
               </IconButton>
             </Box>
           )

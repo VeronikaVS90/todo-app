@@ -20,7 +20,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 const BoardListPage = observer(() => {
   const { data, isLoading, error, create, update, remove } = useBoards();
   const [title, setTitle] = useState("");
-  const [editingId, setEditingID] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
   const onCreate = () => {
@@ -31,12 +31,12 @@ const BoardListPage = observer(() => {
   };
 
   const startEdit = (id: string, currentTitle: string) => {
-    setEditingID(id);
+    setEditingId(id);
     setEditingTitle(currentTitle);
   };
 
   const cancelEdit = () => {
-    setEditingID(null);
+    setEditingId(null);
     setEditingTitle("");
   };
 
