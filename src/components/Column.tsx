@@ -1,6 +1,7 @@
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -10,6 +11,9 @@ import {
   Box,
   TextField,
   Button,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from "@mui/material";
 import { TaskCard } from "./TaskCard";
 import type { Task, Column as ColumnType } from "../types/types";
@@ -28,6 +32,16 @@ export function Column({ column, tasks }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(column.title);
 
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(menuAnchorEl);
+
+  const openMenu = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setMenuAnchorEl(e.currentTarget);
+  };
+
+  const closeMenu = () => setMenuAnchorEl(null);
+
   const handleAdd = () => {
     const title = newTitle.trim();
     if (!title) return;
@@ -41,6 +55,21 @@ export function Column({ column, tasks }: ColumnProps) {
       update.mutate({ id: column.id, title: trimmed });
     }
     setIsEditing(false);
+  };
+
+  const startInlineRename = () => {
+    setEditedTitle(column.title);
+    setIsEditing(true);
+  };
+
+  const onMenuRename = () => {
+    closeMenu();
+    startInlineRename();
+  };
+
+  const onMenuDelete = () => {
+    closeMenu();
+    remove.mutate({ id: column.id });
   };
 
   return (
@@ -63,25 +92,49 @@ export function Column({ column, tasks }: ColumnProps) {
               alignItems="center"
               justifyContent="space-between"
             >
-              <span onClick={() => setIsEditing(true)}>{column.title}</span>
-              <IconButton onClick={() => setIsEditing(true)} size="small">
-                <EditIcon fontSize="small" />
-              </IconButton>
+              <span onClick={startInlineRename}>{column.title}</span>
+
+              {/* кнопка ⋮ */}
               <IconButton
-                onClick={(e) => {
-                  e.stopPropagation();
-                  remove.mutate({ id: column.id });
-                }}
-                aria-label="delete column"
                 size="small"
-                disabled={remove.isPending}
+                aria-label="more actions"
+                aria-controls={menuOpen ? "column-menu" : undefined}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen ? "true" : undefined}
+                onClick={openMenu}
               >
-                <DeleteIcon fontSize="small" />
+                <MoreVertIcon fontSize="small" />
               </IconButton>
             </Box>
           )
         }
       />
+
+      {/* меню з Rename / Delete */}
+      <Menu
+        id="column-menu"
+        anchorEl={menuAnchorEl}
+        open={menuOpen}
+        onClose={closeMenu}
+        onClick={(e) => e.stopPropagation()}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem onClick={onMenuRename}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          Rename
+        </MenuItem>
+
+        <MenuItem onClick={onMenuDelete} disabled={remove.isPending}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          Delete
+        </MenuItem>
+      </Menu>
+
       <CardContent>
         <Droppable droppableId={column.id}>
           {(provided) => (
