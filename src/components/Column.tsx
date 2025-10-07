@@ -1,6 +1,5 @@
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
@@ -13,6 +12,7 @@ import {
   Button,
   Menu,
   MenuItem,
+  IconButton,
   ListItemIcon,
 } from "@mui/material";
 import { TaskCard } from "./TaskCard";
@@ -94,7 +94,6 @@ export function Column({ column, tasks }: ColumnProps) {
             >
               <span onClick={startInlineRename}>{column.title}</span>
 
-              {/* кнопка ⋮ */}
               <IconButton
                 size="small"
                 aria-label="more actions"
@@ -110,7 +109,6 @@ export function Column({ column, tasks }: ColumnProps) {
         }
       />
 
-      {/* меню з Rename / Delete */}
       <Menu
         id="column-menu"
         anchorEl={menuAnchorEl}

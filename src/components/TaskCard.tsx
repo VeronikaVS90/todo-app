@@ -1,22 +1,61 @@
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import { useTasks } from "../api/useTasks";
 import type { Task } from "../types/types";
-import { Card, CardContent, IconButton, TextField, Box } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  Card,
+  CardContent,
+  IconButton,
+  TextField,
+  Box,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+} from "@mui/material";
 
-export function TaskCard({ task, columnId }: { task: Task; columnId: string }) {
+interface TaskProps {
+  task: Task;
+  columnId: string;
+}
+
+export function TaskCard({ task, columnId }: TaskProps) {
   const { update, remove } = useTasks(columnId);
   const [isEditing, setIsEditing] = useState(false);
-  const [title, setTitle] = useState(task.title);
+  const [editedTitle, setEditedTitle] = useState(task.title);
 
-  const handleSave = () => {
-    const next = title.trim();
-    if (!next || next === task.title) {
-      setIsEditing(false);
-      return;
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(menuAnchorEl);
+
+  const openMenu = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setMenuAnchorEl(e.currentTarget);
+  };
+
+  const closeMenu = () => setMenuAnchorEl(null);
+
+  const handleUpdate = () => {
+    const trimmed = editedTitle.trim();
+    if (trimmed && trimmed !== task.title) {
+      update.mutate({ id: task.id, title: trimmed });
     }
-    update.mutate({ id: task.id, title: next });
     setIsEditing(false);
+  };
+
+  const startInlineRename = () => {
+    setEditedTitle(task.title);
+    setIsEditing(true);
+  };
+
+  const onMenuRename = () => {
+    closeMenu();
+    startInlineRename();
+  };
+
+  const onMenuDelete = () => {
+    closeMenu();
+    remove.mutate({ id: task.id });
   };
 
   return (
@@ -24,10 +63,10 @@ export function TaskCard({ task, columnId }: { task: Task; columnId: string }) {
       <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
         {isEditing ? (
           <TextField
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onBlur={handleUpdate}
+            onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
             size="small"
             autoFocus
             fullWidth
@@ -39,16 +78,49 @@ export function TaskCard({ task, columnId }: { task: Task; columnId: string }) {
             justifyContent="space-between"
             gap={1}
           >
-            <span onClick={() => setIsEditing(true)}>{task.title}</span>
+            <span
+              onClick={startInlineRename}
+              style={{ cursor: "pointer", flexGrow: 1 }}
+            >
+              {task.title}
+            </span>
+
             <IconButton
               size="small"
-              onClick={() => remove.mutate({ id: task.id })}
-              aria-label="delete task"
+              aria-label="more actions"
+              aria-controls={menuOpen ? "column-menu" : undefined}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen ? "true" : undefined}
+              onClick={openMenu}
             >
-              <DeleteIcon fontSize="small" />
+              <MoreVertIcon fontSize="small" />
             </IconButton>
           </Box>
         )}
+
+        <Menu
+          id="column-menu"
+          anchorEl={menuAnchorEl}
+          open={menuOpen}
+          onClose={closeMenu}
+          onClick={(e) => e.stopPropagation()}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <MenuItem onClick={onMenuRename}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            Rename
+          </MenuItem>
+
+          <MenuItem onClick={onMenuDelete} disabled={remove.isPending}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            Delete
+          </MenuItem>
+        </Menu>
       </CardContent>
     </Card>
   );
