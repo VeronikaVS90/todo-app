@@ -3,7 +3,8 @@ import { Column } from "./Column";
 import type { Column as ColumnType } from "../types/types";
 
 export function ColumnWithTasks({ column }: { column: ColumnType }) {
-  const { data: tasks = [] } = useTasks(column.id);
+  const columnId = String(column.id);
+  const { data: tasks = [] } = useTasks(columnId);
 
-  return <Column column={column} tasks={tasks} />;
+  return <Column column={{ ...column, id: columnId }} tasks={tasks} />;
 }

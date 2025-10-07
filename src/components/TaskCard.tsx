@@ -1,7 +1,9 @@
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useState } from "react";
+import { type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { useTasks } from "../api/useTasks";
 import type { Task } from "../types/types";
 import {
@@ -18,9 +20,10 @@ import {
 interface TaskProps {
   task: Task;
   columnId: string;
+  dragHandleProps?: DraggableProvidedDragHandleProps;
 }
 
-export function TaskCard({ task, columnId }: TaskProps) {
+export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
   const { update, remove } = useTasks(columnId);
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
@@ -38,7 +41,7 @@ export function TaskCard({ task, columnId }: TaskProps) {
   const handleUpdate = () => {
     const trimmed = editedTitle.trim();
     if (trimmed && trimmed !== task.title) {
-      update.mutate({ id: task.id, title: trimmed });
+      update.mutate({ id: String(task.id), title: trimmed });
     }
     setIsEditing(false);
   };
@@ -55,7 +58,7 @@ export function TaskCard({ task, columnId }: TaskProps) {
 
   const onMenuDelete = () => {
     closeMenu();
-    remove.mutate({ id: task.id });
+    remove.mutate({ id: String(task.id) });
   };
 
   return (
@@ -74,12 +77,15 @@ export function TaskCard({ task, columnId }: TaskProps) {
         ) : (
           <Box
             display="flex"
-            alignItems="start"
+            alignItems="center"
             justifyContent="space-between"
             gap={1}
           >
             <span
-              onClick={startInlineRename}
+              onClick={(e) => {
+                e.stopPropagation();
+                startInlineRename();
+              }}
               style={{ cursor: "pointer", flexGrow: 1 }}
             >
               {task.title}
@@ -87,8 +93,17 @@ export function TaskCard({ task, columnId }: TaskProps) {
 
             <IconButton
               size="small"
+              aria-label="drag"
+              {...dragHandleProps}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DragIndicatorIcon fontSize="small" />
+            </IconButton>
+
+            <IconButton
+              size="small"
               aria-label="more actions"
-              aria-controls={menuOpen ? "column-menu" : undefined}
+              aria-controls={menuOpen ? "task-menu" : undefined}
               aria-haspopup="menu"
               aria-expanded={menuOpen ? "true" : undefined}
               onClick={openMenu}
@@ -99,7 +114,7 @@ export function TaskCard({ task, columnId }: TaskProps) {
         )}
 
         <Menu
-          id="column-menu"
+          id="task-menu"
           anchorEl={menuAnchorEl}
           open={menuOpen}
           onClose={closeMenu}

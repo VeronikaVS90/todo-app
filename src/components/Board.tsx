@@ -57,9 +57,10 @@ export function Board({ boardId }: { boardId: string }) {
 
     moveTask.mutate(
       {
-        id: draggableId,
+        id: String(draggableId),
         fromColumnId: source.droppableId,
         toColumnId: destination.droppableId,
+        position: destination.index,
       },
       {
         onError: () => {
@@ -89,7 +90,10 @@ export function Board({ boardId }: { boardId: string }) {
       <DragDropContext onDragEnd={handleDragEnd}>
         <Box display="flex" gap={2} overflow="auto" pb={1}>
           {columns.map((col) => (
-            <ColumnWithTasks key={col.id} column={col} />
+            <ColumnWithTasks
+              key={String(col.id)}
+              column={{ ...col, id: String(col.id) }}
+            />
           ))}
         </Box>
       </DragDropContext>

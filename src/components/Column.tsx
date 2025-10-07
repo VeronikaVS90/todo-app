@@ -21,12 +21,13 @@ import { useTasks } from "../api/useTasks";
 import { useColumns } from "../api/useColumns";
 
 interface ColumnProps {
-  column: ColumnType;
+  column: ColumnType & { id: string };
   tasks: Task[];
 }
 
 export function Column({ column, tasks }: ColumnProps) {
-  const { create } = useTasks(column.id);
+  const columnId = String(column.id);
+  const { create } = useTasks(columnId);
   const { update, remove } = useColumns(column.boardId);
   const [newTitle, setNewTitle] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -52,7 +53,7 @@ export function Column({ column, tasks }: ColumnProps) {
   const handleUpdate = () => {
     const trimmed = editedTitle.trim();
     if (trimmed && trimmed !== column.title) {
-      update.mutate({ id: column.id, title: trimmed });
+      update.mutate({ id: columnId, title: trimmed });
     }
     setIsEditing(false);
   };
@@ -69,7 +70,7 @@ export function Column({ column, tasks }: ColumnProps) {
 
   const onMenuDelete = () => {
     closeMenu();
-    remove.mutate({ id: column.id });
+    remove.mutate({ id: columnId });
   };
 
   return (
@@ -134,7 +135,7 @@ export function Column({ column, tasks }: ColumnProps) {
       </Menu>
 
       <CardContent>
-        <Droppable droppableId={column.id}>
+        <Droppable droppableId={columnId}>
           {(provided) => (
             <Box
               ref={provided.innerRef}
@@ -148,14 +149,22 @@ export function Column({ column, tasks }: ColumnProps) {
               }}
             >
               {tasks.map((task, index) => (
-                <Draggable key={task.id} draggableId={task.id} index={index}>
+                <Draggable
+                  key={String(task.id)}
+                  draggableId={String(task.id)}
+                  index={index}
+                >
                   {(drag) => (
                     <div
                       ref={drag.innerRef}
                       {...drag.draggableProps}
-                      {...drag.dragHandleProps}
+                      style={drag.draggableProps.style}
                     >
-                      <TaskCard task={task} columnId={column.id} />
+                      <TaskCard
+                        task={task}
+                        columnId={columnId}
+                        dragHandleProps={drag.dragHandleProps ?? undefined}
+                      />
                     </div>
                   )}
                 </Draggable>
