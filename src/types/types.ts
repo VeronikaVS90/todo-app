@@ -15,6 +15,5 @@ export type Task = {
   title: string;
   description?: string;
   columnId: string;
-  done: boolean;
   position?: number;
 };

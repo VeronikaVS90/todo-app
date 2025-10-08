@@ -33,7 +33,6 @@ export function useTasks(columnId: string) {
       const { data } = await api.post<Task>(LIST_URL, {
         ...payload,
         columnId: colId,
-        done: false,
       });
       return data;
     },
@@ -49,7 +48,6 @@ export function useTasks(columnId: string) {
       description?: string;
       columnId?: string;
       position?: number;
-      done?: boolean;
     }
   >({
     mutationFn: async ({ id, ...updates }) => {
