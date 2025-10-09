@@ -1,8 +1,10 @@
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useState } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
+import { type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import {
   Card,
   CardHeader,
@@ -14,6 +16,7 @@ import {
   MenuItem,
   IconButton,
   ListItemIcon,
+  Tooltip,
 } from "@mui/material";
 import { TaskCard } from "./TaskCard";
 import type { Task, Column as ColumnType } from "../types/types";
@@ -23,9 +26,10 @@ import { useColumns } from "../api/useColumns";
 interface ColumnProps {
   column: ColumnType & { id: string };
   tasks: Task[];
+  dragHandleProps?: DraggableProvidedDragHandleProps;
 }
 
-export function Column({ column, tasks }: ColumnProps) {
+export function Column({ column, tasks, dragHandleProps }: ColumnProps) {
   const columnId = String(column.id);
   const { create } = useTasks(columnId);
   const { update, remove } = useColumns(column.boardId);
@@ -92,8 +96,21 @@ export function Column({ column, tasks }: ColumnProps) {
               display="flex"
               alignItems="center"
               justifyContent="space-between"
+              gap={1}
             >
-              <span onClick={startInlineRename}>{column.title}</span>
+              <span onClick={startInlineRename} style={{ flexGrow: 1 }}>
+                {column.title}
+              </span>
+              <Tooltip title="Drag me!" arrow>
+                <IconButton
+                  size="small"
+                  aria-label="drag"
+                  {...dragHandleProps}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <DragIndicatorIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
 
               <IconButton
                 size="small"

@@ -98,7 +98,7 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
               >
                 <span style={{ flexGrow: 1 }}>{task.title}</span>
 
-                <Tooltip title="Drag me" arrow>
+                <Tooltip title="Drag me!" arrow>
                   <IconButton
                     size="small"
                     aria-label="drag"
