@@ -33,6 +33,7 @@ export function useTasks(columnId: string) {
       const { data } = await api.post<Task>(LIST_URL, {
         ...payload,
         columnId: colId,
+        description: "",
       });
       return data;
     },
