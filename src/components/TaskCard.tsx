@@ -15,6 +15,7 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Tooltip,
 } from "@mui/material";
 import { TaskModal } from "./TaskModal";
 
@@ -83,14 +84,16 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
             >
               <span style={{ flexGrow: 1 }}>{task.title}</span>
 
-              <IconButton
-                size="small"
-                aria-label="drag"
-                {...dragHandleProps}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <DragIndicatorIcon fontSize="small" />
-              </IconButton>
+              <Tooltip title="Drag me" arrow>
+                <IconButton
+                  size="small"
+                  aria-label="drag"
+                  {...dragHandleProps}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <DragIndicatorIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
 
               <IconButton
                 size="small"
