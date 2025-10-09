@@ -16,7 +16,13 @@ export function useTasks(columnId: string) {
     queryKey,
     queryFn: async () => {
       const { data } = await api.get<Task[]>(LIST_URL);
-      const filtered = data.filter((t) => String(t.columnId) === colId);
+      const filtered = data
+        .filter((t) => String(t.columnId) === colId)
+        .sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
+        );
       LocalStorageService.set(LS_KEY, filtered);
       return filtered;
     },
@@ -49,13 +55,69 @@ export function useTasks(columnId: string) {
       description?: string;
       columnId?: string;
       position?: number;
+    },
+    {
+      prevSource?: Task[];
+      prevTarget?: Task[];
+      targetKey?: readonly ["tasks", string];
     }
   >({
     mutationFn: async ({ id, ...updates }) => {
       const { data } = await api.put<Task>(ITEM_URL(String(id)), updates);
       return data;
     },
-    onSuccess: (_res, vars) => {
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey });
+
+      const sourceKey = queryKey;
+      const targetCol = String(vars.columnId ?? colId);
+      const targetKey = ["tasks", targetCol] as const;
+
+      const prevSource = qc.getQueryData<Task[]>(sourceKey);
+      const prevTarget =
+        targetCol !== colId ? qc.getQueryData<Task[]>(targetKey) : undefined;
+
+      const patchTask = (t: Task) =>
+        String(t.id) === String(vars.id) ? { ...t, ...vars } : t;
+
+      if (targetCol === colId) {
+        qc.setQueryData<Task[]>(sourceKey, (list = []) => list.map(patchTask));
+      } else {
+        qc.setQueryData<Task[]>(sourceKey, (list = []) =>
+          list.filter((t) => String(t.id) !== String(vars.id))
+        );
+        qc.setQueryData<Task[]>(targetKey, (list = []) => {
+          const updated = [...(list ?? [])];
+          const updatedTask: Task = {
+            ...(prevSource?.find(
+              (t) => String(t.id) === String(vars.id)
+            ) as Task),
+            ...vars,
+            columnId: targetCol,
+          };
+
+          const at =
+            typeof vars.position === "number" ? vars.position : updated.length;
+          updated.splice(
+            Math.max(0, Math.min(at, updated.length)),
+            0,
+            updatedTask
+          );
+          return updated;
+        });
+      }
+
+      return { prevSource, prevTarget, targetKey };
+    },
+
+    onError: (_e, _vars, ctx) => {
+      if (!ctx) return;
+      if (ctx.prevSource) qc.setQueryData(queryKey, ctx.prevSource);
+      if (ctx.prevTarget && ctx.targetKey)
+        qc.setQueryData(ctx.targetKey, ctx.prevTarget);
+    },
+
+    onSettled: (_res, _err, vars) => {
       const target = String(vars.columnId ?? colId);
       qc.invalidateQueries({ queryKey: ["tasks", target] });
       if (target !== colId) qc.invalidateQueries({ queryKey });
