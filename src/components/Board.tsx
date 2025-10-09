@@ -1,19 +1,30 @@
 import { useState } from "react";
-import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Box, TextField, Button } from "@mui/material";
 import { useColumns } from "../api/useColumns";
 import { useMoveTask } from "../api/useMoveTask";
+import { useMoveColumn } from "../api/useMoveColumn";
 import { ColumnWithTasks } from "./ColumnWithTasks";
 import type { Task } from "../types/types";
 
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(n, max));
+}
+
+function normalizePositions<T extends { position?: number }>(arr: T[]): T[] {
+  return arr.map((item, i) => ({ ...item, position: i }));
+}
+
 export function Board({ boardId }: { boardId: string }) {
   const { data: columns = [], create } = useColumns(boardId);
-  const qc = useQueryClient();
+  const moveColumn = useMoveColumn(boardId);
   const moveTask = useMoveTask();
+
+  const qc = useQueryClient();
   const [colTitle, setColTitle] = useState("");
 
-  const handleAddColumn = () => {
+  const addColumn = () => {
     const title = colTitle.trim();
     if (!title) return;
     create.mutate({ title });
@@ -21,16 +32,22 @@ export function Board({ boardId }: { boardId: string }) {
   };
 
   const handleDragEnd = (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
     if (!destination) return;
 
-    const sameList =
+    const samePlace =
       source.droppableId === destination.droppableId &&
       source.index === destination.index;
-    if (sameList) return;
+    if (samePlace) return;
 
-    const fromKey = ["tasks", source.droppableId];
-    const toKey = ["tasks", destination.droppableId];
+    if (type === "COLUMN") {
+      const to = Math.max(0, Math.min(destination.index, columns.length));
+      moveColumn.mutate({ id: String(draggableId), position: to });
+      return;
+    }
+
+    const fromKey = ["tasks", source.droppableId] as const;
+    const toKey = ["tasks", destination.droppableId] as const;
 
     const fromTasks = [...(qc.getQueryData<Task[]>(fromKey) || [])];
     const toTasks =
@@ -38,21 +55,24 @@ export function Board({ boardId }: { boardId: string }) {
         ? fromTasks
         : [...(qc.getQueryData<Task[]>(toKey) || [])];
 
-    const [moved] = fromTasks.splice(source.index, 1);
-    if (!moved) return;
+    const fromIdx = clamp(source.index, 0, Math.max(0, fromTasks.length - 1));
+    const toIdx = clamp(destination.index, 0, toTasks.length);
+
+    const [movedTask] = fromTasks.splice(fromIdx, 1);
+    if (!movedTask) return;
 
     const updated: Task = {
-      ...moved,
+      ...movedTask,
       columnId: destination.droppableId,
     };
 
-    toTasks.splice(destination.index, 0, updated);
+    toTasks.splice(toIdx, 0, updated);
 
     if (source.droppableId === destination.droppableId) {
-      qc.setQueryData<Task[]>(fromKey, toTasks);
+      qc.setQueryData<Task[]>(fromKey, normalizePositions(toTasks));
     } else {
-      qc.setQueryData<Task[]>(fromKey, fromTasks);
-      qc.setQueryData<Task[]>(toKey, toTasks);
+      qc.setQueryData<Task[]>(fromKey, normalizePositions(fromTasks));
+      qc.setQueryData<Task[]>(toKey, normalizePositions(toTasks));
     }
 
     moveTask.mutate(
@@ -60,14 +80,16 @@ export function Board({ boardId }: { boardId: string }) {
         id: String(draggableId),
         fromColumnId: source.droppableId,
         toColumnId: destination.droppableId,
-        position: destination.index,
+        position: toIdx,
       },
       {
         onError: () => {
-          qc.invalidateQueries({ queryKey: ["tasks", source.droppableId] });
-          qc.invalidateQueries({
-            queryKey: ["tasks", destination.droppableId],
-          });
+          qc.invalidateQueries({ queryKey: fromKey });
+          qc.invalidateQueries({ queryKey: toKey });
+        },
+        onSettled: () => {
+          qc.invalidateQueries({ queryKey: fromKey });
+          qc.invalidateQueries({ queryKey: toKey });
         },
       }
     );
@@ -82,20 +104,37 @@ export function Board({ boardId }: { boardId: string }) {
           value={colTitle}
           onChange={(e) => setColTitle(e.target.value)}
         />
-        <Button variant="contained" onClick={handleAddColumn}>
+        <Button variant="contained" onClick={addColumn}>
           Add column
         </Button>
       </Box>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <Box display="flex" gap={2} overflow="auto" pb={1}>
-          {columns.map((col) => (
-            <ColumnWithTasks
-              key={String(col.id)}
-              column={{ ...col, id: String(col.id) }}
-            />
-          ))}
-        </Box>
+        <Droppable
+          droppableId={`board:${boardId}`}
+          direction="horizontal"
+          type="COLUMN"
+        >
+          {(provided) => (
+            <Box
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              display="flex"
+              gap={2}
+              overflow="auto"
+              pb={1}
+            >
+              {columns.map((col, index) => (
+                <ColumnWithTasks
+                  key={String(col.id)}
+                  column={{ ...col, id: String(col.id) }}
+                  index={index}
+                />
+              ))}
+              {provided.placeholder}
+            </Box>
+          )}
+        </Droppable>
       </DragDropContext>
     </>
   );
