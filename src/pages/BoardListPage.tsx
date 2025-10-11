@@ -13,12 +13,23 @@ import {
   IconButton,
   Box,
 } from "@mui/material";
-import { useBoards } from "../api/useBoards";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from "@hello-pangea/dnd";
+
+import { useBoards } from "../api/useBoards";
+import { useMoveBoard } from "../api/useMoveBoard";
 
 const BoardListPage = observer(() => {
   const { data, isLoading, error, create, update, remove } = useBoards();
+  const move = useMoveBoard();
+
   const [title, setTitle] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -56,6 +67,13 @@ const BoardListPage = observer(() => {
     );
   };
 
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination, draggableId } = result;
+    if (!destination) return;
+    if (destination.index === source.index) return;
+    move.mutate({ id: String(draggableId), position: destination.index });
+  };
+
   return (
     <Container style={{ marginTop: 24 }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -79,64 +97,97 @@ const BoardListPage = observer(() => {
       ) : error ? (
         <div>Error loading</div>
       ) : (
-        <List>
-          {data?.map((b) => {
-            const isRowEditing = editingId === b.id;
-            return (
-              <ListItem
-                key={b.id}
-                secondaryAction={
-                  <Box sx={{ display: "flex", gap: 0.5 }}>
-                    <IconButton
-                      size="small"
-                      aria-label="edit board"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEdit(b.id, b.title);
-                      }}
-                      disabled={isRowEditing}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        remove.mutate({ id: b.id });
-                      }}
-                      aria-label="delete board"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                }
-                disablePadding
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="boards" type="BOARD">
+            {(dropProvided) => (
+              <List
+                ref={dropProvided.innerRef}
+                {...dropProvided.droppableProps}
               >
-                {isRowEditing ? (
-                  <div style={{ padding: "8px 16px", width: "100%" }}>
-                    <TextField
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      onBlur={() => saveEdit(b.id, b.title)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit(b.id, b.title);
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                      autoFocus
-                      fullWidth
-                      size="small"
-                      disabled={update.isPending}
-                    />
-                  </div>
-                ) : (
-                  <ListItemButton component={RouterLink} to={`/boards/${b.id}`}>
-                    <ListItemText primary={b.title} />
-                  </ListItemButton>
-                )}
-              </ListItem>
-            );
-          })}
-        </List>
+                {data?.map((b, index) => {
+                  const isRowEditing = editingId === b.id;
+                  return (
+                    <Draggable
+                      key={String(b.id)}
+                      draggableId={String(b.id)}
+                      index={index}
+                      isDragDisabled={isRowEditing}
+                    >
+                      {(dragProvided) => (
+                        <ListItem
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          secondaryAction={
+                            <Box sx={{ display: "flex", gap: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                aria-label="drag board"
+                                {...dragProvided.dragHandleProps}
+                              >
+                                <DragIndicatorIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                aria-label="edit board"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEdit(b.id, b.title);
+                                }}
+                                disabled={isRowEditing}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  remove.mutate({ id: b.id });
+                                }}
+                                aria-label="delete board"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          }
+                          disablePadding
+                        >
+                          {isRowEditing ? (
+                            <div style={{ padding: "8px 16px", width: "100%" }}>
+                              <TextField
+                                value={editingTitle}
+                                onChange={(e) =>
+                                  setEditingTitle(e.target.value)
+                                }
+                                onBlur={() => saveEdit(b.id, b.title)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    saveEdit(b.id, b.title);
+                                  if (e.key === "Escape") cancelEdit();
+                                }}
+                                autoFocus
+                                fullWidth
+                                size="small"
+                                disabled={update.isPending}
+                              />
+                            </div>
+                          ) : (
+                            <ListItemButton
+                              component={RouterLink}
+                              to={`/boards/${b.id}`}
+                            >
+                              <ListItemText primary={b.title} />
+                            </ListItemButton>
+                          )}
+                        </ListItem>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {dropProvided.placeholder}
+              </List>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
     </Container>
   );

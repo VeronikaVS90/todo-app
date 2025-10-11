@@ -9,6 +9,8 @@ export function useBoards() {
   const query = useQuery<Board[], Error>({
     queryKey: key,
     queryFn: async () => (await api.get<Board[]>("/boards")).data,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const create = useMutation<Board, Error, { title: string }>({
