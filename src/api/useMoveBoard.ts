@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
 import type { Board } from "../types/types";
+import { LocalStorageService } from "../services/localStorageService";
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
   const result = list.slice();
@@ -32,7 +33,6 @@ export function useMoveBoard() {
     },
 
     onMutate: async ({ id, position }) => {
-      await qc.cancelQueries({ queryKey: key });
       const prev = qc.getQueryData<Board[]>(key) ?? [];
 
       const from = prev.findIndex((b) => String(b.id) === String(id));
@@ -41,24 +41,27 @@ export function useMoveBoard() {
       const to = Math.max(0, Math.min(position, prev.length - 1));
       const optimistic = normalizePositions(reorder(prev, from, to));
       qc.setQueryData<Board[]>(key, optimistic);
+      LocalStorageService.set("boards", optimistic);
 
       return { prev, from, to };
     },
 
     onError: (_e, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData<Board[]>(key, ctx.prev);
+      if (ctx?.prev) {
+        qc.setQueryData<Board[]>(key, ctx.prev);
+        LocalStorageService.set("boards", ctx.prev);
+      }
     },
 
     onSuccess: (serverBoard) => {
-      qc.setQueryData<Board[]>(key, (curr = []) =>
-        normalizePositions(
-          curr.map((b) =>
-            String(b.id) === String(serverBoard.id)
-              ? { ...b, ...serverBoard }
-              : b
-          )
+      const updated = qc.getQueryData<Board[]>(key) || [];
+      const normalized = normalizePositions(
+        updated.map((b) =>
+          String(b.id) === String(serverBoard.id) ? { ...b, ...serverBoard } : b
         )
       );
+      qc.setQueryData<Board[]>(key, normalized);
+      LocalStorageService.set("boards", normalized);
     },
   });
 }
