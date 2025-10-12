@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "./axios";
 import type { Column } from "../types/types";
 import { LocalStorageService } from "../services/localStorageService";
 
@@ -27,11 +26,11 @@ export function useMoveColumn(boardId: string) {
 
   return useMutation<Column, Error, MoveColumnProps, { prev: Column[] }>({
     mutationFn: async ({ id, position }) => {
-      const { data } = await api.put<Column>(
-        `/columns/${encodeURIComponent(id)}`,
-        { position }
-      );
-      return data;
+      // Don't send position to API, just return the column data
+      // The position will be managed locally
+      const current = qc.getQueryData<Column[]>(key) ?? [];
+      const column = current.find((c) => String(c.id) === String(id));
+      return column || ({ id, position } as Column);
     },
 
     onMutate: async ({ id, position }) => {
@@ -50,13 +49,10 @@ export function useMoveColumn(boardId: string) {
       }
     },
 
-    onSuccess: (updated, { id }) => {
+    onSuccess: () => {
+      // Position is already updated in onMutate, just ensure localStorage is saved
       const cur = qc.getQueryData<Column[]>(key) ?? [];
-      const merged = cur.map((c) =>
-        String(c.id) === String(id) ? { ...c, ...updated } : c
-      );
-      qc.setQueryData<Column[]>(key, merged);
-      LocalStorageService.set(`columns:${boardId}`, merged);
+      LocalStorageService.set(`columns:${boardId}`, cur);
     },
   });
 }

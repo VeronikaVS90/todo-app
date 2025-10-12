@@ -29,7 +29,20 @@ export function useColumns(boardId: string) {
     queryKey: key,
     queryFn: async () => {
       const { data } = await api.get<Column[]>(`/columns?boardId=${boardId}`);
-      const sorted = sortCols(data);
+
+      // Get saved positions from localStorage
+      const savedPositions =
+        LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
+
+      // Merge API data with saved positions
+      const merged = data.map((column) => {
+        const saved = savedPositions.find(
+          (c) => String(c.id) === String(column.id)
+        );
+        return saved ? { ...column, position: saved.position } : column;
+      });
+
+      const sorted = sortCols(merged);
       LocalStorageService.set(`columns:${boardId}`, sorted);
       return sorted;
     },
