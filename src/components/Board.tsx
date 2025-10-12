@@ -6,6 +6,7 @@ import { useColumns } from "../api/useColumns";
 import { useMoveTask } from "../api/useMoveTask";
 import { useMoveColumn } from "../api/useMoveColumn";
 import { ColumnWithTasks } from "./ColumnWithTasks";
+import { LocalStorageService } from "../services/localStorageService";
 import type { Task } from "../types/types";
 
 function clamp(n: number, min: number, max: number) {
@@ -69,10 +70,16 @@ export function Board({ boardId }: { boardId: string }) {
     toTasks.splice(toIdx, 0, updated);
 
     if (source.droppableId === destination.droppableId) {
-      qc.setQueryData<Task[]>(fromKey, normalizePositions(toTasks));
+      const normalized = normalizePositions(toTasks);
+      qc.setQueryData<Task[]>(fromKey, normalized);
+      LocalStorageService.set(`tasks:${source.droppableId}`, normalized);
     } else {
-      qc.setQueryData<Task[]>(fromKey, normalizePositions(fromTasks));
-      qc.setQueryData<Task[]>(toKey, normalizePositions(toTasks));
+      const normalizedFrom = normalizePositions(fromTasks);
+      const normalizedTo = normalizePositions(toTasks);
+      qc.setQueryData<Task[]>(fromKey, normalizedFrom);
+      qc.setQueryData<Task[]>(toKey, normalizedTo);
+      LocalStorageService.set(`tasks:${source.droppableId}`, normalizedFrom);
+      LocalStorageService.set(`tasks:${destination.droppableId}`, normalizedTo);
     }
 
     moveTask.mutate(

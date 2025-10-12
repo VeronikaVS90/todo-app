@@ -16,15 +16,27 @@ export function useTasks(columnId: string) {
     queryKey,
     queryFn: async () => {
       const { data } = await api.get<Task[]>(LIST_URL);
-      const filtered = data
-        .filter((t) => String(t.columnId) === colId)
-        .sort(
-          (a, b) =>
-            (a.position ?? 0) - (b.position ?? 0) ||
-            String(a.id).localeCompare(String(b.id))
+      const filtered = data.filter((t) => String(t.columnId) === colId);
+
+      // Get saved positions from localStorage
+      const savedPositions = LocalStorageService.get<Task[]>(LS_KEY) || [];
+
+      // Merge API data with saved positions
+      const merged = filtered.map((task) => {
+        const saved = savedPositions.find(
+          (t) => String(t.id) === String(task.id)
         );
-      LocalStorageService.set(LS_KEY, filtered);
-      return filtered;
+        return saved ? { ...task, position: saved.position } : task;
+      });
+
+      const sorted = merged.sort(
+        (a, b) =>
+          (a.position ?? 0) - (b.position ?? 0) ||
+          String(a.id).localeCompare(String(b.id))
+      );
+
+      LocalStorageService.set(LS_KEY, sorted);
+      return sorted;
     },
     placeholderData: (prev) =>
       prev ?? LocalStorageService.get<Task[]>(LS_KEY) ?? undefined,
@@ -43,7 +55,12 @@ export function useTasks(columnId: string) {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey }),
+    onSuccess: (newTask) => {
+      const current = qc.getQueryData<Task[]>(queryKey) || [];
+      const updated = [...current, { ...newTask, position: current.length }];
+      qc.setQueryData<Task[]>(queryKey, updated);
+      LocalStorageService.set(LS_KEY, updated);
+    },
   });
 
   const update = useMutation<
@@ -81,30 +98,33 @@ export function useTasks(columnId: string) {
         String(t.id) === String(vars.id) ? { ...t, ...vars } : t;
 
       if (targetCol === colId) {
-        qc.setQueryData<Task[]>(sourceKey, (list = []) => list.map(patchTask));
+        const updated = (qc.getQueryData<Task[]>(sourceKey) || []).map(
+          patchTask
+        );
+        qc.setQueryData<Task[]>(sourceKey, updated);
+        LocalStorageService.set(LS_KEY, updated);
       } else {
         qc.setQueryData<Task[]>(sourceKey, (list = []) =>
           list.filter((t) => String(t.id) !== String(vars.id))
         );
-        qc.setQueryData<Task[]>(targetKey, (list = []) => {
-          const updated = [...(list ?? [])];
-          const updatedTask: Task = {
-            ...(prevSource?.find(
-              (t) => String(t.id) === String(vars.id)
-            ) as Task),
-            ...vars,
-            columnId: targetCol,
-          };
+        const updated = [...(qc.getQueryData<Task[]>(targetKey) ?? [])];
+        const updatedTask: Task = {
+          ...(prevSource?.find(
+            (t) => String(t.id) === String(vars.id)
+          ) as Task),
+          ...vars,
+          columnId: targetCol,
+        };
 
-          const at =
-            typeof vars.position === "number" ? vars.position : updated.length;
-          updated.splice(
-            Math.max(0, Math.min(at, updated.length)),
-            0,
-            updatedTask
-          );
-          return updated;
-        });
+        const at =
+          typeof vars.position === "number" ? vars.position : updated.length;
+        updated.splice(
+          Math.max(0, Math.min(at, updated.length)),
+          0,
+          updatedTask
+        );
+        qc.setQueryData<Task[]>(targetKey, updated);
+        LocalStorageService.set(`tasks:${targetCol}`, updated);
       }
 
       return { prevSource, prevTarget, targetKey };
@@ -112,9 +132,14 @@ export function useTasks(columnId: string) {
 
     onError: (_e, _vars, ctx) => {
       if (!ctx) return;
-      if (ctx.prevSource) qc.setQueryData(queryKey, ctx.prevSource);
-      if (ctx.prevTarget && ctx.targetKey)
+      if (ctx.prevSource) {
+        qc.setQueryData(queryKey, ctx.prevSource);
+        LocalStorageService.set(LS_KEY, ctx.prevSource);
+      }
+      if (ctx.prevTarget && ctx.targetKey) {
         qc.setQueryData(ctx.targetKey, ctx.prevTarget);
+        LocalStorageService.set(`tasks:${ctx.targetKey[1]}`, ctx.prevTarget);
+      }
     },
 
     onSettled: (_res, _err, vars) => {
@@ -131,13 +156,18 @@ export function useTasks(columnId: string) {
     onMutate: async ({ id }) => {
       await qc.cancelQueries({ queryKey });
       const prev = qc.getQueryData<Task[]>(queryKey);
-      qc.setQueryData<Task[]>(queryKey, (list = []) =>
-        list.filter((t) => String(t.id) !== String(id))
+      const updated = (qc.getQueryData<Task[]>(queryKey) || []).filter(
+        (t) => String(t.id) !== String(id)
       );
+      qc.setQueryData<Task[]>(queryKey, updated);
+      LocalStorageService.set(LS_KEY, updated);
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData<Task[]>(queryKey, ctx.prev);
+      if (ctx?.prev) {
+        qc.setQueryData<Task[]>(queryKey, ctx.prev);
+        LocalStorageService.set(LS_KEY, ctx.prev);
+      }
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey });
