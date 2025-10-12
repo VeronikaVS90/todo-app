@@ -91,13 +91,12 @@ export function Board({ boardId }: { boardId: string }) {
       },
       {
         onError: () => {
+          // Revert optimistic updates on error
           qc.invalidateQueries({ queryKey: fromKey });
           qc.invalidateQueries({ queryKey: toKey });
         },
-        onSettled: () => {
-          qc.invalidateQueries({ queryKey: fromKey });
-          qc.invalidateQueries({ queryKey: toKey });
-        },
+        // No onSettled - we don't want to invalidate after successful move
+        // as it would reload data from server and lose local positions
       }
     );
   };

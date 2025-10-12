@@ -104,10 +104,13 @@ export function useTasks(columnId: string) {
         qc.setQueryData<Task[]>(sourceKey, updated);
         LocalStorageService.set(LS_KEY, updated);
       } else {
-        qc.setQueryData<Task[]>(sourceKey, (list = []) =>
-          list.filter((t) => String(t.id) !== String(vars.id))
+        const sourceUpdated = (qc.getQueryData<Task[]>(sourceKey) || []).filter(
+          (t) => String(t.id) !== String(vars.id)
         );
-        const updated = [...(qc.getQueryData<Task[]>(targetKey) ?? [])];
+        qc.setQueryData<Task[]>(sourceKey, sourceUpdated);
+        LocalStorageService.set(LS_KEY, sourceUpdated);
+
+        const targetUpdated = [...(qc.getQueryData<Task[]>(targetKey) ?? [])];
         const updatedTask: Task = {
           ...(prevSource?.find(
             (t) => String(t.id) === String(vars.id)
@@ -117,14 +120,16 @@ export function useTasks(columnId: string) {
         };
 
         const at =
-          typeof vars.position === "number" ? vars.position : updated.length;
-        updated.splice(
-          Math.max(0, Math.min(at, updated.length)),
+          typeof vars.position === "number"
+            ? vars.position
+            : targetUpdated.length;
+        targetUpdated.splice(
+          Math.max(0, Math.min(at, targetUpdated.length)),
           0,
           updatedTask
         );
-        qc.setQueryData<Task[]>(targetKey, updated);
-        LocalStorageService.set(`tasks:${targetCol}`, updated);
+        qc.setQueryData<Task[]>(targetKey, targetUpdated);
+        LocalStorageService.set(`tasks:${targetCol}`, targetUpdated);
       }
 
       return { prevSource, prevTarget, targetKey };
@@ -142,10 +147,9 @@ export function useTasks(columnId: string) {
       }
     },
 
-    onSettled: (_res, _err, vars) => {
-      const target = String(vars.columnId ?? colId);
-      qc.invalidateQueries({ queryKey: ["tasks", target] });
-      if (target !== colId) qc.invalidateQueries({ queryKey });
+    onSettled: () => {
+      // Don't invalidate queries as we manage positions locally
+      // Only invalidate if there was an error (handled in onError)
     },
   });
 

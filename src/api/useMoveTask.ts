@@ -11,10 +11,10 @@ interface MoveTaskProps {
 
 export function useMoveTask() {
   return useMutation<Task, Error, MoveTaskProps>({
-    mutationFn: async ({ id, toColumnId, position }) => {
+    mutationFn: async ({ id, toColumnId }) => {
+      // Only update columnId on server, position is managed locally
       const { data } = await api.put<Task>(`/tasks/${encodeURIComponent(id)}`, {
         columnId: toColumnId,
-        ...(position !== undefined ? { position } : {}),
       });
       return data;
     },
