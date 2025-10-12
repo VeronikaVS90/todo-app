@@ -28,23 +28,41 @@ export function useColumns(boardId: string) {
   const query = useQuery<Column[], Error>({
     queryKey: key,
     queryFn: async () => {
-      const { data } = await api.get<Column[]>(`/columns?boardId=${boardId}`);
+      try {
+        const { data } = await api.get<Column[]>(`/columns?boardId=${boardId}`);
 
-      // Get saved positions from localStorage
-      const savedPositions =
-        LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
+        // Get saved positions from localStorage
+        const savedPositions =
+          LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
 
-      // Merge API data with saved positions
-      const merged = data.map((column) => {
-        const saved = savedPositions.find(
-          (c) => String(c.id) === String(column.id)
-        );
-        return saved ? { ...column, position: saved.position } : column;
-      });
+        // Merge API data with saved positions
+        const merged = data.map((column) => {
+          const saved = savedPositions.find(
+            (c) => String(c.id) === String(column.id)
+          );
+          return saved ? { ...column, position: saved.position } : column;
+        });
 
-      const sorted = sortCols(merged);
-      LocalStorageService.set(`columns:${boardId}`, sorted);
-      return sorted;
+        const sorted = sortCols(merged);
+        LocalStorageService.set(`columns:${boardId}`, sorted);
+        return sorted;
+      } catch (error: unknown) {
+        // If API returns 404, return saved positions from localStorage
+        if (
+          error &&
+          typeof error === "object" &&
+          "response" in error &&
+          error.response &&
+          typeof error.response === "object" &&
+          "status" in error.response &&
+          error.response.status === 404
+        ) {
+          const savedPositions =
+            LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
+          return sortCols(savedPositions);
+        }
+        throw error;
+      }
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -58,16 +76,17 @@ export function useColumns(boardId: string) {
 
   const create = useMutation<Column, Error, { title: string }>({
     mutationFn: async (payload) => {
-      const current = qc.getQueryData<Column[]>(key) ?? [];
       const { data } = await api.post<Column>(`/columns`, {
         ...payload,
         boardId,
-        position: current.length,
       });
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: key });
+    onSuccess: (newColumn) => {
+      const current = qc.getQueryData<Column[]>(key) || [];
+      const updated = [...current, { ...newColumn, position: current.length }];
+      qc.setQueryData<Column[]>(key, updated);
+      LocalStorageService.set(`columns:${boardId}`, updated);
     },
   });
 
@@ -97,14 +116,18 @@ export function useColumns(boardId: string) {
       }
 
       qc.setQueryData<Column[]>(key, next);
+      LocalStorageService.set(`columns:${boardId}`, next);
       return { prev };
     },
 
     onError: (_e, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData<Column[]>(key, ctx.prev);
+      if (ctx?.prev) {
+        qc.setQueryData<Column[]>(key, ctx.prev);
+        LocalStorageService.set(`columns:${boardId}`, ctx.prev);
+      }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: key });
+      // Don't invalidate queries as we manage positions locally
     },
   });
 
@@ -126,6 +149,7 @@ export function useColumns(boardId: string) {
         .filter((c) => String(c.id) !== String(id))
         .map((c, i) => ({ ...c, position: i }));
       qc.setQueryData<Column[]>(key, afterDelete);
+      LocalStorageService.set(`columns:${boardId}`, afterDelete);
 
       const prevTasksByCol: Record<string, Task[]> = {};
       const deletedId = String(id);
@@ -138,7 +162,10 @@ export function useColumns(boardId: string) {
       return { prevCols, prevTasksByCol };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prevCols) qc.setQueryData<Column[]>(key, ctx.prevCols);
+      if (ctx?.prevCols) {
+        qc.setQueryData<Column[]>(key, ctx.prevCols);
+        LocalStorageService.set(`columns:${boardId}`, ctx.prevCols);
+      }
       if (ctx?.prevTasksByCol) {
         for (const [colId, tasks] of Object.entries(ctx.prevTasksByCol)) {
           qc.setQueryData<Task[]>(["tasks", colId], tasks);
@@ -146,7 +173,7 @@ export function useColumns(boardId: string) {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: key });
+      // Don't invalidate queries as we manage positions locally
     },
   });
 

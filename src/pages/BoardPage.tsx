@@ -10,7 +10,7 @@ export function BoardPage() {
   if (isLoading) return <p>Loading...</p>;
   if (error) return <p>Error loading boards</p>;
 
-  const board = boards?.find((b) => b.id === boardId);
+  const board = boards?.find((b) => String(b.id) === String(boardId));
   if (!board) return <p>Board not found</p>;
 
   return (

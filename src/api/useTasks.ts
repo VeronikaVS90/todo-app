@@ -15,28 +15,49 @@ export function useTasks(columnId: string) {
   const query = useQuery<Task[], Error>({
     queryKey,
     queryFn: async () => {
-      const { data } = await api.get<Task[]>(LIST_URL);
-      const filtered = data.filter((t) => String(t.columnId) === colId);
+      try {
+        const { data } = await api.get<Task[]>(LIST_URL);
+        const filtered = data.filter((t) => String(t.columnId) === colId);
 
-      // Get saved positions from localStorage
-      const savedPositions = LocalStorageService.get<Task[]>(LS_KEY) || [];
+        // Get saved positions from localStorage
+        const savedPositions = LocalStorageService.get<Task[]>(LS_KEY) || [];
 
-      // Merge API data with saved positions
-      const merged = filtered.map((task) => {
-        const saved = savedPositions.find(
-          (t) => String(t.id) === String(task.id)
+        // Merge API data with saved positions
+        const merged = filtered.map((task) => {
+          const saved = savedPositions.find(
+            (t) => String(t.id) === String(task.id)
+          );
+          return saved ? { ...task, position: saved.position } : task;
+        });
+
+        const sorted = merged.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
         );
-        return saved ? { ...task, position: saved.position } : task;
-      });
 
-      const sorted = merged.sort(
-        (a, b) =>
-          (a.position ?? 0) - (b.position ?? 0) ||
-          String(a.id).localeCompare(String(b.id))
-      );
-
-      LocalStorageService.set(LS_KEY, sorted);
-      return sorted;
+        LocalStorageService.set(LS_KEY, sorted);
+        return sorted;
+      } catch (error: unknown) {
+        // If API returns 404, return saved positions from localStorage
+        if (
+          error &&
+          typeof error === "object" &&
+          "response" in error &&
+          error.response &&
+          typeof error.response === "object" &&
+          "status" in error.response &&
+          error.response.status === 404
+        ) {
+          const savedPositions = LocalStorageService.get<Task[]>(LS_KEY) || [];
+          return savedPositions.sort(
+            (a, b) =>
+              (a.position ?? 0) - (b.position ?? 0) ||
+              String(a.id).localeCompare(String(b.id))
+          );
+        }
+        throw error;
+      }
     },
     placeholderData: (prev) =>
       prev ?? LocalStorageService.get<Task[]>(LS_KEY) ?? undefined,

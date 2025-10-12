@@ -10,27 +10,49 @@ export function useBoards() {
   const query = useQuery<Board[], Error>({
     queryKey: key,
     queryFn: async () => {
-      const { data } = await api.get<Board[]>("/boards");
+      try {
+        const { data } = await api.get<Board[]>("/boards");
 
-      // Get saved positions from localStorage
-      const savedPositions = LocalStorageService.get<Board[]>("boards") || [];
+        // Get saved positions from localStorage
+        const savedPositions = LocalStorageService.get<Board[]>("boards") || [];
 
-      // Merge API data with saved positions
-      const merged = data.map((board) => {
-        const saved = savedPositions.find(
-          (b) => String(b.id) === String(board.id)
+        // Merge API data with saved positions
+        const merged = data.map((board) => {
+          const saved = savedPositions.find(
+            (b) => String(b.id) === String(board.id)
+          );
+          return saved ? { ...board, position: saved.position } : board;
+        });
+
+        const sorted = merged.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
         );
-        return saved ? { ...board, position: saved.position } : board;
-      });
 
-      const sorted = merged.sort(
-        (a, b) =>
-          (a.position ?? 0) - (b.position ?? 0) ||
-          String(a.id).localeCompare(String(b.id))
-      );
-
-      LocalStorageService.set("boards", sorted);
-      return sorted;
+        LocalStorageService.set("boards", sorted);
+        return sorted;
+      } catch (error: unknown) {
+        // If API returns 404, return saved positions from localStorage
+        if (
+          error &&
+          typeof error === "object" &&
+          "response" in error &&
+          error.response &&
+          typeof error.response === "object" &&
+          "status" in error.response &&
+          error.response.status === 404
+        ) {
+          const savedPositions =
+            LocalStorageService.get<Board[]>("boards") || [];
+          return savedPositions.sort(
+            (a, b) =>
+              (a.position ?? 0) - (b.position ?? 0) ||
+              String(a.id).localeCompare(String(b.id))
+          );
+        }
+        throw error;
+      }
     },
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
