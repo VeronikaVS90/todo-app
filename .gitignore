@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Documentation
+ZOD_INTEGRATION.md
+CLEAR_STORAGE.md
+BUGFIX.md
+DEBUG_GUIDE.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

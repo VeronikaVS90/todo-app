@@ -19,7 +19,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { TaskCard } from "./TaskCard";
-import type { Task, Column as ColumnType } from "../types/types";
+import type { Task, Column as ColumnType } from "../schemas/schemas";
 import { useTasks } from "../api/useTasks";
 import { useColumns } from "../api/useColumns";
 

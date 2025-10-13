@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Board } from "../types/types";
+import type { Board } from "../schemas/schemas";
+import { BoardSchema } from "../schemas/schemas";
+import { parseWithSchema } from "../lib/zod-helpers";
 import { LocalStorageService } from "../services/localStorageService";
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
@@ -25,11 +27,11 @@ export function useMoveBoard() {
     { prev?: Board[]; from?: number; to?: number }
   >({
     mutationFn: async ({ id, position }) => {
-      const { data } = await api.put<Board>(
-        `/boards/${encodeURIComponent(id)}`,
-        { position }
-      );
-      return data;
+      const { data } = await api.put(`/boards/${encodeURIComponent(id)}`, {
+        position,
+      });
+      // Validate response with Zod
+      return parseWithSchema(BoardSchema, data);
     },
 
     onMutate: async ({ id, position }) => {

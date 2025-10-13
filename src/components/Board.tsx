@@ -7,7 +7,7 @@ import { useMoveTask } from "../api/useMoveTask";
 import { useMoveColumn } from "../api/useMoveColumn";
 import { ColumnWithTasks } from "./ColumnWithTasks";
 import { LocalStorageService } from "../services/localStorageService";
-import type { Task } from "../types/types";
+import type { Task } from "../schemas/schemas";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(n, max));

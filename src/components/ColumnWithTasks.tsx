@@ -1,6 +1,6 @@
 import { Draggable } from "@hello-pangea/dnd";
 import { Column as ColumnCmp } from "./Column";
-import type { Column as ColumnType } from "../types/types";
+import type { Column as ColumnType } from "../schemas/schemas";
 import { useTasks } from "../api/useTasks";
 
 export function ColumnWithTasks({

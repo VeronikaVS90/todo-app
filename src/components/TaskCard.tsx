@@ -5,7 +5,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useState } from "react";
 import { type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { useTasks } from "../api/useTasks";
-import type { Task } from "../types/types";
+import type { Task } from "../schemas/schemas";
 import {
   Card,
   CardContent,

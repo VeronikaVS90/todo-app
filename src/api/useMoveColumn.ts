@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Column } from "../types/types";
+import type { Column } from "../schemas/schemas";
 import { LocalStorageService } from "../services/localStorageService";
 
 interface MoveColumnProps {

@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Board } from "../types/types";
+import type { Board } from "../schemas/schemas";
+import { BoardSchema, BoardArraySchema } from "../schemas/schemas";
+import { parseWithSchema } from "../lib/zod-helpers";
 import { LocalStorageService } from "../services/localStorageService";
 
 export function useBoards() {
@@ -11,13 +13,29 @@ export function useBoards() {
     queryKey: key,
     queryFn: async () => {
       try {
-        const { data } = await api.get<Board[]>("/boards");
+        console.log("📡 Fetching boards from API...");
+        const { data } = await api.get("/boards");
+        console.log("📦 Raw API response:", data);
+
+        // Validate API response with Zod (non-blocking)
+        let validatedData: Board[];
+        try {
+          validatedData = parseWithSchema(BoardArraySchema, data);
+          console.log("✅ Validation successful");
+        } catch (validationError) {
+          console.warn(
+            "⚠️ Validation failed, using raw data:",
+            validationError
+          );
+          // If validation fails, use raw data as fallback
+          validatedData = Array.isArray(data) ? data : [];
+        }
 
         // Get saved positions from localStorage
         const savedPositions = LocalStorageService.get<Board[]>("boards") || [];
 
         // Merge API data with saved positions
-        const merged = data.map((board) => {
+        const merged = validatedData.map((board) => {
           const saved = savedPositions.find(
             (b) => String(b.id) === String(board.id)
           );
@@ -33,16 +51,17 @@ export function useBoards() {
         LocalStorageService.set("boards", sorted);
         return sorted;
       } catch (error: unknown) {
-        // If API returns 404, return saved positions from localStorage
+        console.error("❌ API Error:", error);
+        // If API returns 404 or any error, return saved positions from localStorage
         if (
           error &&
           typeof error === "object" &&
           "response" in error &&
           error.response &&
           typeof error.response === "object" &&
-          "status" in error.response &&
-          error.response.status === 404
+          "status" in error.response
         ) {
+          console.log("💾 Returning data from localStorage due to API error");
           const savedPositions =
             LocalStorageService.get<Board[]>("boards") || [];
           return savedPositions.sort(
@@ -61,8 +80,11 @@ export function useBoards() {
   });
 
   const create = useMutation<Board, Error, { title: string }>({
-    mutationFn: async (payload) =>
-      (await api.post<Board>("/boards", payload)).data,
+    mutationFn: async (payload) => {
+      const { data } = await api.post("/boards", payload);
+      // Validate response with Zod
+      return parseWithSchema(BoardSchema, data);
+    },
     onSuccess: (newBoard) => {
       const current = qc.getQueryData<Board[]>(key) || [];
       const updated = [{ ...newBoard, position: current.length }, ...current];
@@ -77,8 +99,11 @@ export function useBoards() {
     { id: string; title: string },
     { prev?: Board[] }
   >({
-    mutationFn: async ({ id, ...updates }) =>
-      (await api.put<Board>(`/boards/${id}`, updates)).data,
+    mutationFn: async ({ id, ...updates }) => {
+      const { data } = await api.put(`/boards/${id}`, updates);
+      // Validate response with Zod
+      return parseWithSchema(BoardSchema, data);
+    },
     onMutate: async ({ id, title }) => {
       await qc.cancelQueries({ queryKey: key });
       const prev = qc.getQueryData<Board[]>(key);

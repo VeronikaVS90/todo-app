@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Column, Task } from "../types/types";
+import type { Column, Task } from "../schemas/schemas";
+import { ColumnSchema, ColumnArraySchema } from "../schemas/schemas";
+import { parseWithSchema } from "../lib/zod-helpers";
 import { LocalStorageService } from "../services/localStorageService";
 
 function reorderById(list: Column[], id: string, toIndex: number) {
@@ -29,14 +31,17 @@ export function useColumns(boardId: string) {
     queryKey: key,
     queryFn: async () => {
       try {
-        const { data } = await api.get<Column[]>(`/columns?boardId=${boardId}`);
+        const { data } = await api.get(`/columns?boardId=${boardId}`);
+
+        // Validate API response with Zod
+        const validatedData = parseWithSchema(ColumnArraySchema, data);
 
         // Get saved positions from localStorage
         const savedPositions =
           LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
 
         // Merge API data with saved positions
-        const merged = data.map((column) => {
+        const merged = validatedData.map((column) => {
           const saved = savedPositions.find(
             (c) => String(c.id) === String(column.id)
           );
@@ -76,11 +81,12 @@ export function useColumns(boardId: string) {
 
   const create = useMutation<Column, Error, { title: string }>({
     mutationFn: async (payload) => {
-      const { data } = await api.post<Column>(`/columns`, {
+      const { data } = await api.post(`/columns`, {
         ...payload,
         boardId,
       });
-      return data;
+      // Validate response with Zod
+      return parseWithSchema(ColumnSchema, data);
     },
     onSuccess: (newColumn) => {
       const current = qc.getQueryData<Column[]>(key) || [];
@@ -97,8 +103,9 @@ export function useColumns(boardId: string) {
     { prev?: Column[] }
   >({
     mutationFn: async ({ id, ...updates }) => {
-      const { data } = await api.put<Column>(`/columns/${id}`, updates);
-      return data;
+      const { data } = await api.put(`/columns/${id}`, updates);
+      // Validate response with Zod
+      return parseWithSchema(ColumnSchema, data);
     },
 
     onMutate: async ({ id, title, position }) => {

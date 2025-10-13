@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Task } from "../types/types";
+import type { Task } from "../schemas/schemas";
+import { TaskSchema, TaskArraySchema } from "../schemas/schemas";
+import { parseWithSchema } from "../lib/zod-helpers";
 import { LocalStorageService } from "../services/localStorageService";
 
 const LIST_URL = "/tasks";
@@ -16,8 +18,13 @@ export function useTasks(columnId: string) {
     queryKey,
     queryFn: async () => {
       try {
-        const { data } = await api.get<Task[]>(LIST_URL);
-        const filtered = data.filter((t) => String(t.columnId) === colId);
+        const { data } = await api.get(LIST_URL);
+
+        // Validate API response with Zod
+        const validatedData = parseWithSchema(TaskArraySchema, data);
+        const filtered = validatedData.filter(
+          (t) => String(t.columnId) === colId
+        );
 
         // Get saved positions from localStorage
         const savedPositions = LocalStorageService.get<Task[]>(LS_KEY) || [];
@@ -69,12 +76,13 @@ export function useTasks(columnId: string) {
     { title: string; description?: string }
   >({
     mutationFn: async (payload) => {
-      const { data } = await api.post<Task>(LIST_URL, {
+      const { data } = await api.post(LIST_URL, {
         ...payload,
         columnId: colId,
         description: "",
       });
-      return data;
+      // Validate response with Zod
+      return parseWithSchema(TaskSchema, data);
     },
     onSuccess: (newTask) => {
       const current = qc.getQueryData<Task[]>(queryKey) || [];
@@ -101,8 +109,9 @@ export function useTasks(columnId: string) {
     }
   >({
     mutationFn: async ({ id, ...updates }) => {
-      const { data } = await api.put<Task>(ITEM_URL(String(id)), updates);
-      return data;
+      const { data } = await api.put(ITEM_URL(String(id)), updates);
+      // Validate response with Zod
+      return parseWithSchema(TaskSchema, data);
     },
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey });

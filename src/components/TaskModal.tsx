@@ -10,7 +10,7 @@ import {
   Stack,
 } from "@mui/material";
 import { useEffect, useState } from "react";
-import type { Task } from "../types/types";
+import type { Task } from "../schemas/schemas";
 import { useTasks } from "../api/useTasks";
 
 interface TaskModalProps {
