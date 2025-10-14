@@ -165,27 +165,29 @@ export function Column({ column, tasks, dragHandleProps }: ColumnProps) {
                 mb: 1,
               }}
             >
-              {tasks.map((task, index) => (
-                <Draggable
-                  key={String(task.id)}
-                  draggableId={String(task.id)}
-                  index={index}
-                >
-                  {(drag) => (
-                    <div
-                      ref={drag.innerRef}
-                      {...drag.draggableProps}
-                      style={drag.draggableProps.style}
-                    >
-                      <TaskCard
-                        task={task}
-                        columnId={columnId}
-                        dragHandleProps={drag.dragHandleProps ?? undefined}
-                      />
-                    </div>
-                  )}
-                </Draggable>
-              ))}
+              {tasks
+                .filter((t): t is Task => !!t)
+                .map((task, index) => (
+                  <Draggable
+                    key={String(task.id)}
+                    draggableId={String(task.id)}
+                    index={index}
+                  >
+                    {(drag) => (
+                      <div
+                        ref={drag.innerRef}
+                        {...drag.draggableProps}
+                        style={drag.draggableProps.style}
+                      >
+                        <TaskCard
+                          task={task}
+                          columnId={columnId}
+                          dragHandleProps={drag.dragHandleProps ?? undefined}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
               {provided.placeholder}
             </Box>
           )}

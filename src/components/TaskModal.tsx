@@ -22,29 +22,36 @@ interface TaskModalProps {
 
 export function TaskModal({ open, onClose, task, columnId }: TaskModalProps) {
   const { update } = useTasks(columnId);
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description ?? "");
+
+  const [title, setTitle] = useState<string>(task.title);
+  const [description, setDescription] = useState<string>(
+    task.description ?? ""
+  );
 
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description ?? "");
-  }, [task.id]);
+  }, [task.id, task.title, task.description]);
+
+  const nextTitle = title.trim();
+  const nextDesc = description.trim();
 
   const canSave =
-    title.trim().length > 0 &&
-    (title.trim() !== task.title ||
-      (description ?? "") !== (task.description ?? ""));
+    nextTitle.length > 0 &&
+    (nextTitle !== task.title || nextDesc !== (task.description ?? ""));
 
   const handleSave = () => {
-    const payload: Partial<Task> & { id: string } = {
+    const payload: { id: string; title?: string; description?: string } = {
       id: String(task.id),
-      title: title.trim(),
-      description: description.trim() || undefined,
     };
 
-    update.mutate(payload, {
-      onSuccess: () => onClose(),
-    });
+    if (nextTitle !== task.title) payload.title = nextTitle;
+
+    if (nextDesc !== (task.description ?? "")) {
+      payload.description = nextDesc;
+    }
+
+    update.mutate(payload, { onSuccess: () => onClose() });
   };
 
   return (

@@ -1,27 +1,76 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
 import type { Task } from "../schemas/schemas";
-import { TaskSchema } from "../schemas/schemas";
-import { parseWithSchema } from "../lib/zod-helpers";
+import { arrayMove, clamp, normalizePositions } from "./dnd-helpers";
+import { LocalStorageService } from "../services/localStorageService";
 
-interface MoveTaskProps {
-  id: string;
-  fromColumnId: string;
-  toColumnId: string;
-  position?: number;
-}
+export function useMoveTaskGlobal() {
+  const qc = useQueryClient();
 
-export function useMoveTask() {
-  return useMutation<Task, Error, MoveTaskProps>({
-    mutationFn: async ({ id, toColumnId, position }) => {
-      // Update columnId and position on server
-      const { data } = await api.put(`/tasks/${encodeURIComponent(id)}`, {
+  return useMutation<
+    void,
+    Error,
+    { id: string; fromColumnId: string; toColumnId: string; toIndex: number },
+    { prevFrom?: Task[]; prevTo?: Task[] }
+  >({
+    mutationFn: async ({ id, toColumnId, toIndex }) => {
+      await api.put(`/tasks/${encodeURIComponent(id)}`, {
         columnId: toColumnId,
-        position,
+        position: toIndex,
       });
+    },
+    onMutate: async ({ id, fromColumnId, toColumnId, toIndex }) => {
+      const fromKey = ["tasks", String(fromColumnId)] as const;
+      const toKey = ["tasks", String(toColumnId)] as const;
 
-      // Validate response with Zod
-      return parseWithSchema(TaskSchema, data);
+      await Promise.all([
+        qc.cancelQueries({ queryKey: fromKey, exact: true }),
+        qc.cancelQueries({ queryKey: toKey, exact: true }),
+      ]);
+
+      const prevFrom = qc.getQueryData<Task[]>(fromKey) ?? [];
+      const prevTo = qc.getQueryData<Task[]>(toKey) ?? [];
+
+      if (fromColumnId === toColumnId) {
+        const from = prevFrom.findIndex((t) => String(t.id) === String(id));
+        if (from !== -1) {
+          const to = clamp(toIndex, 0, prevFrom.length - 1);
+          const moved = arrayMove(prevFrom, from, to);
+          const norm = normalizePositions(moved);
+          qc.setQueryData(fromKey, norm);
+          LocalStorageService.set(`tasks:${fromColumnId}`, norm);
+        }
+        return { prevFrom, prevTo };
+      }
+
+      const item = prevFrom.find((t) => String(t.id) === String(id));
+      if (!item) return { prevFrom, prevTo };
+
+      const fromList = prevFrom.filter((t) => String(t.id) !== String(id));
+      const to = clamp(toIndex, 0, prevTo.length);
+      const toList = prevTo.slice();
+      toList.splice(to, 0, { ...item, columnId: String(toColumnId) });
+
+      const normFrom = normalizePositions(fromList);
+      const normTo = normalizePositions(toList);
+      qc.setQueryData(fromKey, normFrom);
+      qc.setQueryData(toKey, normTo);
+      LocalStorageService.set(`tasks:${fromColumnId}`, normFrom);
+      LocalStorageService.set(`tasks:${toColumnId}`, normTo);
+
+      return { prevFrom, prevTo };
+    },
+    onError: (_e, v, ctx) => {
+      const fromKey = ["tasks", String(v.fromColumnId)] as const;
+      const toKey = ["tasks", String(v.toColumnId)] as const;
+      if (ctx?.prevFrom) {
+        qc.setQueryData(fromKey, ctx.prevFrom);
+        LocalStorageService.set(`tasks:${v.fromColumnId}`, ctx.prevFrom);
+      }
+      if (ctx?.prevTo) {
+        qc.setQueryData(toKey, ctx.prevTo);
+        LocalStorageService.set(`tasks:${v.toColumnId}`, ctx.prevTo);
+      }
     },
   });
 }

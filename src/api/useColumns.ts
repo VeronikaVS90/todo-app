@@ -1,27 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
-import type { Column, Task } from "../schemas/schemas";
+import type { Column } from "../schemas/schemas";
 import { ColumnSchema, ColumnArraySchema } from "../schemas/schemas";
 import { parseWithSchema } from "../lib/zod-helpers";
 import { LocalStorageService } from "../services/localStorageService";
-
-function reorderById(list: Column[], id: string, toIndex: number) {
-  const arr = [...list];
-  const fromIndex = arr.findIndex((c) => String(c.id) === String(id));
-  if (fromIndex === -1) return arr;
-
-  // 1. Remove element first
-  const [moved] = arr.splice(fromIndex, 1);
-
-  // 2. Calculate clamped index AFTER removal (array is now shorter)
-  const clamped = Math.max(0, Math.min(toIndex, arr.length));
-
-  // 3. Insert at correct position
-  arr.splice(clamped, 0, moved);
-
-  // 4. Normalize positions
-  return arr.map((c, i) => ({ ...c, position: i }));
-}
+import { arrayMove, normalizePositions, clamp } from "./dnd-helpers";
 
 function sortCols(cols: Column[]) {
   return [...cols].sort(
@@ -34,165 +17,136 @@ function sortCols(cols: Column[]) {
 export function useColumns(boardId: string) {
   const qc = useQueryClient();
   const key = ["columns", boardId] as const;
+  const LS_KEY = `columns:${boardId}`;
 
   const query = useQuery<Column[], Error>({
     queryKey: key,
     queryFn: async () => {
-      try {
-        const { data } = await api.get(`/columns?boardId=${boardId}`);
+      const { data } = await api.get(`/columns?boardId=${boardId}`);
+      const validated = parseWithSchema(ColumnArraySchema, data);
 
-        // Validate API response with Zod
-        const validatedData = parseWithSchema(ColumnArraySchema, data);
+      const saved = LocalStorageService.get<Column[]>(LS_KEY) || [];
+      const merged = validated.map((c) => {
+        const hit = saved.find((s) => String(s.id) === String(c.id));
+        return hit ? { ...c, position: hit.position } : c;
+      });
 
-        // Get saved positions from localStorage
-        const savedPositions =
-          LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
-
-        // Merge API data with saved positions
-        const merged = validatedData.map((column) => {
-          const saved = savedPositions.find(
-            (c) => String(c.id) === String(column.id)
-          );
-          return saved ? { ...column, position: saved.position } : column;
-        });
-
-        const sorted = sortCols(merged);
-        LocalStorageService.set(`columns:${boardId}`, sorted);
-        return sorted;
-      } catch (error: unknown) {
-        // If API returns 404, return saved positions from localStorage
-        if (
-          error &&
-          typeof error === "object" &&
-          "response" in error &&
-          error.response &&
-          typeof error.response === "object" &&
-          "status" in error.response &&
-          error.response.status === 404
-        ) {
-          const savedPositions =
-            LocalStorageService.get<Column[]>(`columns:${boardId}`) || [];
-          return sortCols(savedPositions);
-        }
-        throw error;
-      }
+      const sorted = sortCols(merged);
+      LocalStorageService.set(LS_KEY, sorted);
+      return sorted;
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
-    placeholderData: (prev) =>
-      prev ??
-      LocalStorageService.get<Column[]>(`columns:${boardId}`) ??
-      undefined,
-    // Don't use select as it causes re-sorting after every cache update
-    // Data is already sorted in queryFn
+    placeholderData:
+      LocalStorageService.get<Column[]>(LS_KEY) ?? ((prev) => prev),
   });
 
   const create = useMutation<Column, Error, { title: string }>({
     mutationFn: async (payload) => {
-      const { data } = await api.post(`/columns`, {
-        ...payload,
-        boardId,
-      });
-      // Validate response with Zod
+      const { data } = await api.post(`/columns`, { ...payload, boardId });
       return parseWithSchema(ColumnSchema, data);
     },
-    onSuccess: (newColumn) => {
-      const current = qc.getQueryData<Column[]>(key) || [];
-      const updated = [...current, { ...newColumn, position: current.length }];
-      qc.setQueryData<Column[]>(key, updated);
-      LocalStorageService.set(`columns:${boardId}`, updated);
+    onSuccess: (created) => {
+      const cur = qc.getQueryData<Column[]>(key) ?? [];
+      const next = [...cur, { ...created, position: cur.length }];
+      qc.setQueryData(key, next);
+      LocalStorageService.set(LS_KEY, next);
     },
   });
 
   const update = useMutation<
     Column,
     Error,
-    { id: string; title: string; position?: number },
+    { id: string; title?: string; position?: number },
     { prev?: Column[] }
   >({
     mutationFn: async ({ id, ...updates }) => {
-      const { data } = await api.put(`/columns/${id}`, updates);
-      // Validate response with Zod
+      const { data } = await api.put(`/columns/${encodeURIComponent(id)}`, {
+        ...updates,
+        boardId,
+      });
       return parseWithSchema(ColumnSchema, data);
     },
-
     onMutate: async ({ id, title, position }) => {
-      await qc.cancelQueries({ queryKey: key });
+      await qc.cancelQueries({ queryKey: key, exact: true });
       const prev = qc.getQueryData<Column[]>(key) ?? [];
+      let next = prev.map((c) =>
+        String(c.id) === String(id) ? { ...c, ...(title ? { title } : {}) } : c
+      );
 
-      let next = prev;
       if (typeof position === "number") {
-        next = reorderById(prev, String(id), position);
+        const from = next.findIndex((c) => String(c.id) === String(id));
+        if (from !== -1) {
+          const to = clamp(position, 0, next.length - 1);
+          next = normalizePositions(arrayMove(next, from, to));
+        }
       }
-      if (typeof title === "string") {
-        next = next.map((c) =>
-          String(c.id) === String(id) ? { ...c, title } : c
-        );
-      }
-
-      qc.setQueryData<Column[]>(key, next);
-      LocalStorageService.set(`columns:${boardId}`, next);
+      qc.setQueryData(key, next);
+      LocalStorageService.set(LS_KEY, next);
       return { prev };
     },
-
-    onError: (_e, _vars, ctx) => {
+    onError: (_e, _v, ctx) => {
       if (ctx?.prev) {
-        qc.setQueryData<Column[]>(key, ctx.prev);
-        LocalStorageService.set(`columns:${boardId}`, ctx.prev);
+        qc.setQueryData(key, ctx.prev);
+        LocalStorageService.set(LS_KEY, ctx.prev);
       }
-    },
-    onSettled: () => {
-      // Don't invalidate queries as we manage positions locally
     },
   });
 
-  const remove = useMutation<
+  const move = useMutation<
     void,
     Error,
-    { id: string },
-    { prevCols?: Column[]; prevTasksByCol?: Record<string, Task[]> }
+    { id: string; toIndex: number },
+    { prev?: Column[] }
   >({
+    mutationFn: async ({ id, toIndex }) => {
+      await api.put(`/columns/${encodeURIComponent(id)}`, {
+        position: toIndex,
+        boardId,
+      });
+    },
+    onMutate: async ({ id, toIndex }) => {
+      await qc.cancelQueries({ queryKey: key, exact: true });
+      const prev = qc.getQueryData<Column[]>(key) ?? [];
+      const from = prev.findIndex((c) => String(c.id) === String(id));
+      if (from === -1) return { prev };
+      const to = clamp(toIndex, 0, prev.length - 1);
+      const next = normalizePositions(arrayMove(prev, from, to));
+      qc.setQueryData(key, next);
+      LocalStorageService.set(LS_KEY, next);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) {
+        qc.setQueryData(key, ctx.prev);
+        LocalStorageService.set(LS_KEY, ctx.prev);
+      }
+    },
+  });
+
+  const remove = useMutation<void, Error, { id: string }, { prev?: Column[] }>({
     mutationFn: async ({ id }) => {
       await api.delete(`/columns/${encodeURIComponent(id)}`);
     },
     onMutate: async ({ id }) => {
-      await qc.cancelQueries({ queryKey: key });
-
-      const prevCols = qc.getQueryData<Column[]>(key) ?? [];
-
-      const afterDelete = prevCols
-        .filter((c) => String(c.id) !== String(id))
-        .map((c, i) => ({ ...c, position: i }));
-      qc.setQueryData<Column[]>(key, afterDelete);
-      LocalStorageService.set(`columns:${boardId}`, afterDelete);
-
-      const prevTasksByCol: Record<string, Task[]> = {};
-      const deletedId = String(id);
-      const tasksKey = ["tasks", deletedId] as const;
-      const prevTasks = qc.getQueryData<Task[]>(tasksKey);
-      if (prevTasks) {
-        prevTasksByCol[deletedId] = prevTasks;
-        qc.removeQueries({ queryKey: tasksKey });
-      }
-      return { prevCols, prevTasksByCol };
+      await qc.cancelQueries({ queryKey: key, exact: true });
+      const prev = qc.getQueryData<Column[]>(key) ?? [];
+      const next = normalizePositions(
+        prev.filter((c) => String(c.id) !== String(id))
+      );
+      qc.setQueryData(key, next);
+      LocalStorageService.set(LS_KEY, next);
+      return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prevCols) {
-        qc.setQueryData<Column[]>(key, ctx.prevCols);
-        LocalStorageService.set(`columns:${boardId}`, ctx.prevCols);
+      if (ctx?.prev) {
+        qc.setQueryData(key, ctx.prev);
+        LocalStorageService.set(LS_KEY, ctx.prev);
       }
-      if (ctx?.prevTasksByCol) {
-        for (const [colId, tasks] of Object.entries(ctx.prevTasksByCol)) {
-          qc.setQueryData<Task[]>(["tasks", colId], tasks);
-        }
-      }
-    },
-    onSettled: () => {
-      // Don't invalidate queries as we manage positions locally
     },
   });
 
-  return { ...query, create, update, remove };
+  return { ...query, create, update, move, remove };
 }

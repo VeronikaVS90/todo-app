@@ -58,7 +58,7 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
     remove.mutate({ id: String(task.id) });
   };
 
-  const getSnippet = (s?: string, max = 100) => {
+  const getSnippet = (s: string | null | undefined, max = 100) => {
     const raw = (s ?? "").trim();
     if (!raw) return "No description...";
     if (raw.length <= max) return raw;
@@ -71,12 +71,16 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
     </Box>
   );
 
+  const handleProps = (dragHandleProps ??
+    {}) as DraggableProvidedDragHandleProps;
+
   return (
     <>
       <Tooltip title={tooltipTitle} arrow placement="top" enterDelay={500}>
         <Card variant="outlined">
           <CardContent
-            sx={{ py: 1.5, "&:last-child": { pb: 1.5 }, cursor: "pointer" }}
+            {...handleProps}
+            sx={{ py: 1.5, "&:last-child": { pb: 1.5 }, cursor: "grab" }}
             onClick={() => setModalOpen(true)}
           >
             {isEditingInline ? (
@@ -102,7 +106,6 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
                   <IconButton
                     size="small"
                     aria-label="drag"
-                    {...dragHandleProps}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <DragIndicatorIcon fontSize="small" />
