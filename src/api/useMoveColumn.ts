@@ -1,49 +1,57 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import api from "./axios";
 import type { Column } from "../schemas/schemas";
 import { LocalStorageService } from "../services/localStorageService";
-
-interface MoveColumnProps {
-  id: string;
-  position: number;
-}
 
 function reorderById(list: Column[], id: string, toIndex: number) {
   const arr = [...list];
   const fromIndex = arr.findIndex((c) => String(c.id) === String(id));
-  if (fromIndex === -1) return arr;
+  if (fromIndex === -1) {
+    console.error("❌ Column not found:", id);
+    return arr;
+  }
 
+  // 1. Remove element first
+  const [moved] = arr.splice(fromIndex, 1);
+
+  // 2. Calculate clamped index AFTER removal (array is now shorter)
   const clamped = Math.max(0, Math.min(toIndex, arr.length));
 
-  const [moved] = arr.splice(fromIndex, 1);
+  // 3. Insert at correct position
   arr.splice(clamped, 0, moved);
 
-  return arr.map((c, i) => ({ ...c, position: i }));
+  // 4. Normalize positions
+  const result = arr.map((c, i) => ({ ...c, position: i }));
+
+  return result;
 }
 
 export function useMoveColumn(boardId: string) {
   const qc = useQueryClient();
   const key = ["columns", boardId] as const;
 
-  return useMutation<void, Error, MoveColumnProps, { prev: Column[] }>({
-    mutationFn: async () => {
-      // No API call needed - positions are managed locally
-      return;
-    },
-
-    onMutate: async ({ id, position }) => {
-      await qc.cancelQueries({ queryKey: key });
+  return {
+    // Manual cache update function to be called after animation
+    updateCache: (id: string, position: number) => {
       const prev = qc.getQueryData<Column[]>(key) ?? [];
       const next = reorderById(prev, String(id), position);
       qc.setQueryData<Column[]>(key, next);
       LocalStorageService.set(`columns:${boardId}`, next);
-      return { prev };
-    },
 
-    onError: (_e, _vars, ctx) => {
-      if (ctx?.prev) {
-        qc.setQueryData<Column[]>(key, ctx.prev);
-        LocalStorageService.set(`columns:${boardId}`, ctx.prev);
-      }
+      // Sync position with server
+      api
+        .put(`/columns/${encodeURIComponent(id)}`, {
+          position,
+          boardId,
+        })
+        .then(() => {
+          // Successfully saved to server
+        })
+        .catch(() => {
+          // Revert to previous state on error
+          qc.setQueryData<Column[]>(key, prev);
+          LocalStorageService.set(`columns:${boardId}`, prev);
+        });
     },
-  });
+  };
 }

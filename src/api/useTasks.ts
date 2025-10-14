@@ -66,6 +66,10 @@ export function useTasks(columnId: string) {
         throw error;
       }
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     placeholderData: (prev) =>
       prev ?? LocalStorageService.get<Task[]>(LS_KEY) ?? undefined,
   });

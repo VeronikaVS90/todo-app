@@ -71,7 +71,13 @@ const BoardListPage = observer(() => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
     if (destination.index === source.index) return;
-    move.mutate({ id: String(draggableId), position: destination.index });
+
+    // Delay cache update until AFTER drag animation completes
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        move.updateCache(String(draggableId), destination.index);
+      });
+    });
   };
 
   return (

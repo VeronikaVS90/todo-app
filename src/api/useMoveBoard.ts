@@ -20,50 +20,40 @@ export function useMoveBoard() {
   const qc = useQueryClient();
   const key = ["boards"] as const;
 
-  return useMutation<
-    Board,
-    Error,
-    { id: string; position: number },
-    { prev?: Board[]; from?: number; to?: number }
-  >({
-    mutationFn: async ({ id, position }) => {
-      const { data } = await api.put(`/boards/${encodeURIComponent(id)}`, {
-        position,
-      });
-      // Validate response with Zod
-      return parseWithSchema(BoardSchema, data);
-    },
-
-    onMutate: async ({ id, position }) => {
+  return {
+    // Manual cache update function to be called after animation
+    updateCache: (id: string, position: number) => {
       const prev = qc.getQueryData<Board[]>(key) ?? [];
-
       const from = prev.findIndex((b) => String(b.id) === String(id));
-      if (from === -1) return { prev };
 
-      const to = Math.max(0, Math.min(position, prev.length - 1));
-      const optimistic = normalizePositions(reorder(prev, from, to));
+      if (from === -1) return;
+
+      // position is already correct from drag & drop
+      const optimistic = normalizePositions(reorder(prev, from, position));
       qc.setQueryData<Board[]>(key, optimistic);
       LocalStorageService.set("boards", optimistic);
 
-      return { prev, from, to };
+      // Make API call to sync with server
+      api
+        .put(`/boards/${encodeURIComponent(id)}`, { position })
+        .then(({ data }) => {
+          const serverBoard = parseWithSchema(BoardSchema, data);
+          const updated = qc.getQueryData<Board[]>(key) || [];
+          const normalized = normalizePositions(
+            updated.map((b) =>
+              String(b.id) === String(serverBoard.id)
+                ? { ...b, ...serverBoard }
+                : b
+            )
+          );
+          qc.setQueryData<Board[]>(key, normalized);
+          LocalStorageService.set("boards", normalized);
+        })
+        .catch(() => {
+          // Revert to previous state
+          qc.setQueryData<Board[]>(key, prev);
+          LocalStorageService.set("boards", prev);
+        });
     },
-
-    onError: (_e, _vars, ctx) => {
-      if (ctx?.prev) {
-        qc.setQueryData<Board[]>(key, ctx.prev);
-        LocalStorageService.set("boards", ctx.prev);
-      }
-    },
-
-    onSuccess: (serverBoard) => {
-      const updated = qc.getQueryData<Board[]>(key) || [];
-      const normalized = normalizePositions(
-        updated.map((b) =>
-          String(b.id) === String(serverBoard.id) ? { ...b, ...serverBoard } : b
-        )
-      );
-      qc.setQueryData<Board[]>(key, normalized);
-      LocalStorageService.set("boards", normalized);
-    },
-  });
+  };
 }

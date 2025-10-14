@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Box, TextField, Button } from "@mui/material";
@@ -24,6 +24,20 @@ export function Board({ boardId }: { boardId: string }) {
 
   const qc = useQueryClient();
   const [colTitle, setColTitle] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const columnsSnapshot = useRef(columns);
+  const dragStartSnapshot = useRef(columns);
+
+  // Use memoized list: frozen during drag, updated when not dragging
+  const displayColumns = useMemo(() => {
+    if (isDragging) {
+      // Return frozen snapshot from the moment drag started
+      return dragStartSnapshot.current;
+    }
+    // Update snapshot and return new columns when not dragging
+    columnsSnapshot.current = columns;
+    return columns;
+  }, [columns, isDragging]);
 
   const addColumn = () => {
     const title = colTitle.trim();
@@ -32,74 +46,133 @@ export function Board({ boardId }: { boardId: string }) {
     setColTitle("");
   };
 
-  const handleDragEnd = (result: DropResult) => {
-    const { source, destination, draggableId, type } = result;
-    if (!destination) return;
+  const handleDragStart = useCallback(() => {
+    // Capture current state at drag start
+    dragStartSnapshot.current = columnsSnapshot.current;
 
-    const samePlace =
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index;
-    if (samePlace) return;
+    // Cancel ALL ongoing queries to prevent cache updates during drag
+    qc.cancelQueries();
 
-    if (type === "COLUMN") {
-      const to = Math.max(0, Math.min(destination.index, columns.length));
-      moveColumn.mutate({ id: String(draggableId), position: to });
-      return;
-    }
+    setIsDragging(true);
+  }, [qc]);
 
-    const fromKey = ["tasks", source.droppableId] as const;
-    const toKey = ["tasks", destination.droppableId] as const;
+  const handleDragEnd = useCallback(
+    (result: DropResult) => {
+      const { source, destination, draggableId, type } = result;
 
-    const fromTasks = [...(qc.getQueryData<Task[]>(fromKey) || [])];
-    const toTasks =
-      source.droppableId === destination.droppableId
-        ? fromTasks
-        : [...(qc.getQueryData<Task[]>(toKey) || [])];
-
-    const fromIdx = clamp(source.index, 0, Math.max(0, fromTasks.length - 1));
-    const toIdx = clamp(destination.index, 0, toTasks.length);
-
-    const [movedTask] = fromTasks.splice(fromIdx, 1);
-    if (!movedTask) return;
-
-    const updated: Task = {
-      ...movedTask,
-      columnId: destination.droppableId,
-    };
-
-    toTasks.splice(toIdx, 0, updated);
-
-    if (source.droppableId === destination.droppableId) {
-      const normalized = normalizePositions(toTasks);
-      qc.setQueryData<Task[]>(fromKey, normalized);
-      LocalStorageService.set(`tasks:${source.droppableId}`, normalized);
-    } else {
-      const normalizedFrom = normalizePositions(fromTasks);
-      const normalizedTo = normalizePositions(toTasks);
-      qc.setQueryData<Task[]>(fromKey, normalizedFrom);
-      qc.setQueryData<Task[]>(toKey, normalizedTo);
-      LocalStorageService.set(`tasks:${source.droppableId}`, normalizedFrom);
-      LocalStorageService.set(`tasks:${destination.droppableId}`, normalizedTo);
-    }
-
-    moveTask.mutate(
-      {
-        id: String(draggableId),
-        fromColumnId: source.droppableId,
-        toColumnId: destination.droppableId,
-        position: toIdx,
-      },
-      {
-        onError: () => {
-          // Revert optimistic updates on error
-          qc.invalidateQueries({ queryKey: fromKey });
-          qc.invalidateQueries({ queryKey: toKey });
-        },
-        // No onSettled - we don't want to invalidate after successful move
-        // as it would reload data from server and lose local positions
+      if (!destination) {
+        // Unfreeze list after animation completes
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setIsDragging(false);
+          });
+        });
+        return;
       }
-    );
-  };
+
+      const samePlace =
+        source.droppableId === destination.droppableId &&
+        source.index === destination.index;
+      if (samePlace) {
+        // Unfreeze list after animation completes
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setIsDragging(false);
+          });
+        });
+        return;
+      }
+
+      if (type === "COLUMN") {
+        // Delay cache update until AFTER drag animation completes
+        // Use double requestAnimationFrame to ensure animation is done
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            moveColumn.updateCache(String(draggableId), destination.index);
+            setIsDragging(false);
+          });
+        });
+        return;
+      }
+
+      // Prepare task move but delay cache update until after animation
+      const fromKey = ["tasks", source.droppableId] as const;
+      const toKey = ["tasks", destination.droppableId] as const;
+
+      // Delay cache update AND API call until after animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const fromTasks = [...(qc.getQueryData<Task[]>(fromKey) || [])];
+          const toTasks =
+            source.droppableId === destination.droppableId
+              ? fromTasks
+              : [...(qc.getQueryData<Task[]>(toKey) || [])];
+
+          const fromIdx = clamp(
+            source.index,
+            0,
+            Math.max(0, fromTasks.length - 1)
+          );
+          const toIdx = clamp(destination.index, 0, toTasks.length);
+
+          const [movedTask] = fromTasks.splice(fromIdx, 1);
+          if (!movedTask) {
+            setIsDragging(false);
+            return;
+          }
+
+          const updated: Task = {
+            ...movedTask,
+            columnId: destination.droppableId,
+          };
+
+          toTasks.splice(toIdx, 0, updated);
+
+          // Update cache after animation completes
+          if (source.droppableId === destination.droppableId) {
+            const normalized = normalizePositions(toTasks);
+            qc.setQueryData<Task[]>(fromKey, normalized);
+            LocalStorageService.set(`tasks:${source.droppableId}`, normalized);
+          } else {
+            const normalizedFrom = normalizePositions(fromTasks);
+            const normalizedTo = normalizePositions(toTasks);
+            qc.setQueryData<Task[]>(fromKey, normalizedFrom);
+            qc.setQueryData<Task[]>(toKey, normalizedTo);
+            LocalStorageService.set(
+              `tasks:${source.droppableId}`,
+              normalizedFrom
+            );
+            LocalStorageService.set(
+              `tasks:${destination.droppableId}`,
+              normalizedTo
+            );
+          }
+
+          // Call API to sync with server
+          moveTask.mutate(
+            {
+              id: String(draggableId),
+              fromColumnId: source.droppableId,
+              toColumnId: destination.droppableId,
+              position: toIdx,
+            },
+            {
+              onError: () => {
+                // Revert optimistic updates on error
+                qc.invalidateQueries({ queryKey: fromKey });
+                qc.invalidateQueries({ queryKey: toKey });
+              },
+              // No onSettled - we don't want to invalidate after successful move
+              // as it would reload data from server and lose local positions
+            }
+          );
+
+          setIsDragging(false);
+        });
+      });
+    },
+    [qc, moveColumn, moveTask]
+  );
 
   return (
     <>
@@ -109,13 +182,14 @@ export function Board({ boardId }: { boardId: string }) {
           size="small"
           value={colTitle}
           onChange={(e) => setColTitle(e.target.value)}
+          disabled={isDragging}
         />
-        <Button variant="contained" onClick={addColumn}>
+        <Button variant="contained" onClick={addColumn} disabled={isDragging}>
           Add column
         </Button>
       </Box>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <Droppable
           droppableId={`board:${boardId}`}
           direction="horizontal"
@@ -130,7 +204,7 @@ export function Board({ boardId }: { boardId: string }) {
               overflow="auto"
               pb={1}
             >
-              {columns.map((col, index) => (
+              {displayColumns.map((col, index) => (
                 <ColumnWithTasks
                   key={String(col.id)}
                   column={{ ...col, id: String(col.id) }}

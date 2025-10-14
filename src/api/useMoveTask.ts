@@ -13,11 +13,13 @@ interface MoveTaskProps {
 
 export function useMoveTask() {
   return useMutation<Task, Error, MoveTaskProps>({
-    mutationFn: async ({ id, toColumnId }) => {
-      // Only update columnId on server, position is managed locally
+    mutationFn: async ({ id, toColumnId, position }) => {
+      // Update columnId and position on server
       const { data } = await api.put(`/tasks/${encodeURIComponent(id)}`, {
         columnId: toColumnId,
+        position,
       });
+
       // Validate response with Zod
       return parseWithSchema(TaskSchema, data);
     },

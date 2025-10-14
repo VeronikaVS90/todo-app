@@ -9,9 +9,17 @@ function reorderById(list: Column[], id: string, toIndex: number) {
   const arr = [...list];
   const fromIndex = arr.findIndex((c) => String(c.id) === String(id));
   if (fromIndex === -1) return arr;
+
+  // 1. Remove element first
   const [moved] = arr.splice(fromIndex, 1);
+
+  // 2. Calculate clamped index AFTER removal (array is now shorter)
   const clamped = Math.max(0, Math.min(toIndex, arr.length));
+
+  // 3. Insert at correct position
   arr.splice(clamped, 0, moved);
+
+  // 4. Normalize positions
   return arr.map((c, i) => ({ ...c, position: i }));
 }
 
@@ -72,11 +80,13 @@ export function useColumns(boardId: string) {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchOnMount: false,
     placeholderData: (prev) =>
       prev ??
       LocalStorageService.get<Column[]>(`columns:${boardId}`) ??
       undefined,
-    select: (data) => sortCols(data),
+    // Don't use select as it causes re-sorting after every cache update
+    // Data is already sorted in queryFn
   });
 
   const create = useMutation<Column, Error, { title: string }>({
