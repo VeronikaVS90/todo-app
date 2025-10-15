@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { ReactElement } from "react";
-import { render, RenderOptions } from "@testing-library/react";
+import React, { type ReactElement } from "react";
+import { render, type RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
