@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
 import type { Board } from "../schemas/schemas";
 import { BoardSchema } from "../schemas/schemas";

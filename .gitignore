@@ -28,3 +28,5 @@ DEBUG_GUIDE.md
 *.njsproj
 *.sln
 *.sw?
+
+TESTING_SUMMARY.md

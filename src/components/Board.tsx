@@ -65,6 +65,7 @@ export function Board({ boardId }: { boardId: string }) {
           size="small"
           value={colTitle}
           onChange={(e) => setColTitle(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addColumn()}
         />
         <Button variant="contained" onClick={addColumn}>
           Add column
