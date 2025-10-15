@@ -27,15 +27,33 @@ export function Board({ boardId }: { boardId: string }) {
 
   const onDragEnd = useCallback(
     (result: DropResult) => {
-      setIsDragging(false);
       const { source, destination, draggableId, type } = result;
+
+      // Delay state update until after animation
+      requestAnimationFrame(() => {
+        setIsDragging(false);
+      });
+
       if (!destination) return;
 
       if (type === "COLUMN") {
         if (source.index !== destination.index) {
-          moveColumn.mutate({
-            id: String(draggableId),
-            toIndex: destination.index,
+          // Delay cache update until AFTER drag animation completes
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              moveColumn.mutate(
+                {
+                  id: String(draggableId),
+                  toIndex: destination.index,
+                },
+                {
+                  onError: (error) => {
+                    console.error("Failed to move column:", error);
+                    // Optionally revert the UI state here
+                  },
+                }
+              );
+            });
           });
         }
         return;
