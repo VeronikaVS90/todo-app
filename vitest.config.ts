@@ -25,10 +25,4 @@ export default defineConfig({
       "@": resolve(__dirname, "./src"),
     },
   },
-  define: {
-    global: "globalThis",
-  },
-  optimizeDeps: {
-    include: ["undici"],
-  },
 });
