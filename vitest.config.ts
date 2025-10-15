@@ -5,10 +5,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    coverage: {
-      reporter: ["text", "json", "html"],
-      exclude: ["node_modules/", "**/*.d.ts", "**/*.config.*", "dist/"],
-    },
   },
   resolve: {
     alias: {
