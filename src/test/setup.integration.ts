@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { expect, afterEach, beforeAll, afterAll } from "vitest";
+import { expect, afterEach, beforeAll, afterAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { server } from "./mocks/server";
@@ -23,25 +23,33 @@ afterEach(() => {
 afterAll(() => server.close());
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
+class MockIntersectionObserver {
   constructor() {}
   disconnect() {}
   observe() {}
   unobserve() {}
-};
+}
+
+(
+  global as unknown as { IntersectionObserver: typeof MockIntersectionObserver }
+).IntersectionObserver = MockIntersectionObserver;
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
+class MockResizeObserver {
   constructor() {}
   disconnect() {}
   observe() {}
   unobserve() {}
-};
+}
+
+(
+  global as unknown as { ResizeObserver: typeof MockResizeObserver }
+).ResizeObserver = MockResizeObserver;
 
 // Mock matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -52,4 +60,3 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: vi.fn(),
   })),
 });
-
