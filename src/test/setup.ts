@@ -2,9 +2,18 @@ import "@testing-library/jest-dom";
 import { expect, afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { fetch, Headers, Request, Response } from "undici";
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
+
+// Polyfill fetch API for Node.js environment
+Object.assign(globalThis, {
+  fetch,
+  Headers,
+  Request,
+  Response,
+});
 
 // Cleanup after each test
 afterEach(() => {

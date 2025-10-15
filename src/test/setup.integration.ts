@@ -2,10 +2,19 @@ import "@testing-library/jest-dom";
 import { expect, afterEach, beforeAll, afterAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { fetch, Headers, Request, Response } from "undici";
 import { server } from "./mocks/server";
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
+
+// Polyfill fetch API for Node.js environment
+Object.assign(globalThis, {
+  fetch,
+  Headers,
+  Request,
+  Response,
+});
 
 // Start MSW server before all tests
 beforeAll(() => server.listen({ onUnhandledRequest: "warn" }));
