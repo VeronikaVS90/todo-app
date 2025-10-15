@@ -10,18 +10,19 @@ import { mockColumn } from "../../test/utils/test-utils";
 import "../../test/setup.integration";
 
 // Mock axios
-const mockAxios = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  delete: vi.fn(),
-};
-
 vi.mock("../axios", () => ({
-  default: mockAxios,
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
 }));
 
-const mockApi = mockAxios;
+import api from "../axios";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockApi = api as any;
 
 describe("useColumns Integration Tests", () => {
   let queryClient: QueryClient;
