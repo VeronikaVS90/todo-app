@@ -72,7 +72,6 @@ const BoardListPage = observer(() => {
     if (!destination) return;
     if (destination.index === source.index) return;
 
-    // Delay cache update until AFTER drag animation completes
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         move.updateCache(String(draggableId), destination.index);

@@ -1,4 +1,3 @@
-// src/api/dnd-helpers.ts
 export function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(n, max));
 }

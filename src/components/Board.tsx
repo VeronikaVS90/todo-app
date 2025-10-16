@@ -29,7 +29,6 @@ export function Board({ boardId }: { boardId: string }) {
     (result: DropResult) => {
       const { source, destination, draggableId, type } = result;
 
-      // Delay state update until after animation
       requestAnimationFrame(() => {
         setIsDragging(false);
       });
@@ -38,7 +37,6 @@ export function Board({ boardId }: { boardId: string }) {
 
       if (type === "COLUMN") {
         if (source.index !== destination.index) {
-          // Delay cache update until AFTER drag animation completes
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               moveColumn.mutate(
@@ -49,7 +47,6 @@ export function Board({ boardId }: { boardId: string }) {
                 {
                   onError: (error) => {
                     console.error("Failed to move column:", error);
-                    // Optionally revert the UI state here
                   },
                 }
               );

@@ -21,19 +21,16 @@ export function useMoveBoard() {
   const key = ["boards"] as const;
 
   return {
-    // Manual cache update function to be called after animation
     updateCache: (id: string, position: number) => {
       const prev = qc.getQueryData<Board[]>(key) ?? [];
       const from = prev.findIndex((b) => String(b.id) === String(id));
 
       if (from === -1) return;
 
-      // position is already correct from drag & drop
       const optimistic = normalizePositions(reorder(prev, from, position));
       qc.setQueryData<Board[]>(key, optimistic);
       LocalStorageService.set("boards", optimistic);
 
-      // Make API call to sync with server
       api
         .put(`/boards/${encodeURIComponent(id)}`, { position })
         .then(({ data }) => {
@@ -50,7 +47,6 @@ export function useMoveBoard() {
           LocalStorageService.set("boards", normalized);
         })
         .catch(() => {
-          // Revert to previous state
           qc.setQueryData<Board[]>(key, prev);
           LocalStorageService.set("boards", prev);
         });
