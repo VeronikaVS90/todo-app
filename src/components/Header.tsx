@@ -15,7 +15,7 @@ const Header = memo(() => {
           style={{ flex: 1, cursor: "pointer" }}
           onClick={() => navigate("/")}
         >
-          My To Do App
+          My To Do App!
         </div>
         <IconButton color="inherit" onClick={() => store.ui.toggleTheme()}>
           <Brightness4Icon />
