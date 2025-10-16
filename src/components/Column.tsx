@@ -2,7 +2,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { useState } from "react";
+import { useState, memo, useCallback } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import {
@@ -29,7 +29,11 @@ interface ColumnProps {
   dragHandleProps?: DraggableProvidedDragHandleProps;
 }
 
-export function Column({ column, tasks, dragHandleProps }: ColumnProps) {
+export const Column = memo(function Column({
+  column,
+  tasks,
+  dragHandleProps,
+}: ColumnProps) {
   const columnId = String(column.id);
   const { create } = useTasks(columnId);
   const { update, remove } = useColumns(column.boardId);
@@ -47,35 +51,35 @@ export function Column({ column, tasks, dragHandleProps }: ColumnProps) {
 
   const closeMenu = () => setMenuAnchorEl(null);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     const title = newTitle.trim();
     if (!title) return;
     create.mutate({ title });
     setNewTitle("");
-  };
+  }, [newTitle, create]);
 
-  const handleUpdate = () => {
+  const handleUpdate = useCallback(() => {
     const trimmed = editedTitle.trim();
     if (trimmed && trimmed !== column.title) {
       update.mutate({ id: columnId, title: trimmed });
     }
     setIsEditing(false);
-  };
+  }, [editedTitle, column.title, update, columnId]);
 
-  const startInlineRename = () => {
+  const startInlineRename = useCallback(() => {
     setEditedTitle(column.title);
     setIsEditing(true);
-  };
+  }, [column.title]);
 
-  const onMenuRename = () => {
+  const onMenuRename = useCallback(() => {
     closeMenu();
     startInlineRename();
-  };
+  }, [closeMenu, startInlineRename]);
 
-  const onMenuDelete = () => {
+  const onMenuDelete = useCallback(() => {
     closeMenu();
     remove.mutate({ id: columnId });
-  };
+  }, [closeMenu, remove, columnId]);
 
   return (
     <Card sx={{ width: 280, flexShrink: 0 }}>
@@ -214,4 +218,4 @@ export function Column({ column, tasks, dragHandleProps }: ColumnProps) {
       </CardContent>
     </Card>
   );
-}
+});

@@ -21,3 +21,5 @@ export function BoardPage() {
     </div>
   );
 }
+
+export default BoardPage;

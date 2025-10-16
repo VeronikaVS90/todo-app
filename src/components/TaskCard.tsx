@@ -2,7 +2,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { useState } from "react";
+import { useState, memo, useCallback, useMemo } from "react";
 import { type DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { useTasks } from "../api/useTasks";
 import type { Task } from "../schemas/schemas";
@@ -25,7 +25,11 @@ interface TaskProps {
   dragHandleProps?: DraggableProvidedDragHandleProps;
 }
 
-export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
+export const TaskCard = memo(function TaskCard({
+  task,
+  columnId,
+  dragHandleProps,
+}: TaskProps) {
   const { update, remove } = useTasks(columnId);
   const [isEditingInline, setIsEditingInline] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
@@ -40,35 +44,38 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
 
   const closeMenu = () => setMenuAnchorEl(null);
 
-  const handleUpdateInline = () => {
+  const handleUpdateInline = useCallback(() => {
     const trimmed = editedTitle.trim();
     if (trimmed && trimmed !== task.title) {
       update.mutate({ id: String(task.id), title: trimmed });
     }
     setIsEditingInline(false);
-  };
+  }, [editedTitle, task.title, update, task.id]);
 
-  const onMenuRename = () => {
+  const onMenuRename = useCallback(() => {
     closeMenu();
     setModalOpen(true);
-  };
+  }, [closeMenu]);
 
-  const onMenuDelete = () => {
+  const onMenuDelete = useCallback(() => {
     closeMenu();
     remove.mutate({ id: String(task.id) });
-  };
+  }, [closeMenu, remove, task.id]);
 
-  const getSnippet = (s: string | null | undefined, max = 100) => {
+  const getSnippet = useCallback((s: string | null | undefined, max = 100) => {
     const raw = (s ?? "").trim();
     if (!raw) return "No description...";
     if (raw.length <= max) return raw;
     return raw.slice(0, max - 1).trimEnd() + "...";
-  };
+  }, []);
 
-  const tooltipTitle = (
-    <Box sx={{ maxWidth: 420 }}>
-      <strong>Description:</strong> {getSnippet(task.description)}
-    </Box>
+  const tooltipTitle = useMemo(
+    () => (
+      <Box sx={{ maxWidth: 420 }}>
+        <strong>Description:</strong> {getSnippet(task.description)}
+      </Box>
+    ),
+    [task.description, getSnippet]
   );
 
   const handleProps = (dragHandleProps ??
@@ -160,4 +167,4 @@ export function TaskCard({ task, columnId, dragHandleProps }: TaskProps) {
       />
     </>
   );
-}
+});

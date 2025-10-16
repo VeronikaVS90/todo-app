@@ -1,11 +1,11 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, memo, useMemo } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { Box, TextField, Button } from "@mui/material";
 import { useColumns } from "../api/useColumns";
 import { useMoveTaskGlobal } from "../api/useMoveTask";
 import { ColumnWithTasks } from "./ColumnWithTasks";
 
-export function Board({ boardId }: { boardId: string }) {
+export const Board = memo(function Board({ boardId }: { boardId: string }) {
   const { data: columns = [], create, move: moveColumn } = useColumns(boardId);
   const moveTask = useMoveTaskGlobal();
 
@@ -13,12 +13,12 @@ export function Board({ boardId }: { boardId: string }) {
   const [isDragging, setIsDragging] = useState(false);
   const columnsAtDragStartRef = useRef<typeof columns>([]);
 
-  const addColumn = () => {
+  const addColumn = useCallback(() => {
     const t = colTitle.trim();
     if (!t) return;
     create.mutate({ title: t });
     setColTitle("");
-  };
+  }, [colTitle, create]);
 
   const onDragStart = useCallback(() => {
     columnsAtDragStartRef.current = columns.slice();
@@ -70,6 +70,12 @@ export function Board({ boardId }: { boardId: string }) {
     [moveColumn, moveTask]
   );
 
+  const filteredColumns = useMemo(() => {
+    return (isDragging ? columnsAtDragStartRef.current : columns).filter(
+      Boolean
+    );
+  }, [isDragging, columns]);
+
   if (!columns) return null;
 
   return (
@@ -102,15 +108,13 @@ export function Board({ boardId }: { boardId: string }) {
               overflow="auto"
               pb={1}
             >
-              {(isDragging ? columnsAtDragStartRef.current : columns)
-                .filter(Boolean)
-                .map((col, index) => (
-                  <ColumnWithTasks
-                    key={String(col.id)}
-                    column={{ ...col, id: String(col.id) }}
-                    index={index}
-                  />
-                ))}
+              {filteredColumns.map((col, index) => (
+                <ColumnWithTasks
+                  key={String(col.id)}
+                  column={{ ...col, id: String(col.id) }}
+                  index={index}
+                />
+              ))}
               {provided.placeholder}
             </Box>
           )}
@@ -118,4 +122,4 @@ export function Board({ boardId }: { boardId: string }) {
       </DragDropContext>
     </>
   );
-}
+});

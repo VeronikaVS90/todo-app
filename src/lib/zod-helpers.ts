@@ -1,6 +1,5 @@
 import { z, ZodError } from "zod";
 
-/** Структурована помилка валідації з доступом до issues і cause: ZodError */
 export class SchemaValidationError<T = unknown> extends Error {
   readonly issues: ZodError["issues"];
   readonly data?: T;
@@ -24,7 +23,6 @@ function defaultSafeStringify(value: unknown, max = 2_000) {
   }
 }
 
-/** Strict parse: кидає виняток з повним ZodError (у cause) */
 export function parseWithSchema<T extends z.ZodTypeAny>(
   schema: T,
   data: unknown,
@@ -45,7 +43,6 @@ export function parseWithSchema<T extends z.ZodTypeAny>(
   return res.data;
 }
 
-/** М’який parse: повертає Result-тип, без винятків */
 export function tryParseWithSchema<T extends z.ZodTypeAny>(
   schema: T,
   data: unknown,
@@ -62,7 +59,6 @@ export function tryParseWithSchema<T extends z.ZodTypeAny>(
   return { ok: true, data: res.data };
 }
 
-/** Back-compat: стара сигнатура, що повертала data | null */
 export function safeParseWithSchema<T extends z.ZodTypeAny>(
   schema: T,
   data: unknown,
@@ -72,7 +68,6 @@ export function safeParseWithSchema<T extends z.ZodTypeAny>(
   return res.ok ? res.data : null;
 }
 
-/** Лише перевірка валідності (type guard) */
 export function isValid<T extends z.ZodTypeAny>(
   schema: T,
   data: unknown
@@ -80,7 +75,6 @@ export function isValid<T extends z.ZodTypeAny>(
   return schema.safeParse(data).success;
 }
 
-/** Async-версії (на випадок refine/transform з промісами) */
 export async function parseWithSchemaAsync<T extends z.ZodTypeAny>(
   schema: T,
   data: unknown,
@@ -117,6 +111,5 @@ export async function tryParseWithSchemaAsync<T extends z.ZodTypeAny>(
   return { ok: true, data: res.data };
 }
 
-/** Опціонально: типи для зручності експорту */
 export type { ZodError };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: ZodError };

@@ -9,7 +9,7 @@ import {
   Button,
   Stack,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import type { Task } from "../schemas/schemas";
 import { useTasks } from "../api/useTasks";
 
@@ -20,7 +20,12 @@ interface TaskModalProps {
   columnId: string;
 }
 
-export function TaskModal({ open, onClose, task, columnId }: TaskModalProps) {
+export const TaskModal = memo(function TaskModal({
+  open,
+  onClose,
+  task,
+  columnId,
+}: TaskModalProps) {
   const { update } = useTasks(columnId);
 
   const [title, setTitle] = useState<string>(task.title);
@@ -108,4 +113,4 @@ export function TaskModal({ open, onClose, task, columnId }: TaskModalProps) {
       </DialogActions>
     </Dialog>
   );
-}
+});

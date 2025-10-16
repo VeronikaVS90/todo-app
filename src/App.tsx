@@ -1,11 +1,18 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { observer } from "mobx-react-lite";
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import {
+  CssBaseline,
+  ThemeProvider,
+  createTheme,
+  CircularProgress,
+  Box,
+} from "@mui/material";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useStore } from "./store/useStore";
-import BoardListPage from "./pages/BoardListPage";
-import { BoardPage } from "./pages/BoardPage";
 import Header from "./components/Header";
+
+const BoardListPage = lazy(() => import("./pages/BoardListPage"));
+const BoardPage = lazy(() => import("./pages/BoardPage"));
 
 const App = observer(() => {
   const { ui } = useStore();
@@ -23,11 +30,23 @@ const App = observer(() => {
       <CssBaseline />
       <BrowserRouter>
         <Header />
-        <Routes>
-          <Route path="/" element={<BoardListPage />} />
-
-          <Route path="/boards/:boardId" element={<BoardPage />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              minHeight="50vh"
+            >
+              <CircularProgress />
+            </Box>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<BoardListPage />} />
+            <Route path="/boards/:boardId" element={<BoardPage />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </ThemeProvider>
   );

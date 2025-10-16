@@ -1,9 +1,10 @@
 import { AppBar, Toolbar, IconButton } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
+import { memo } from "react";
 import { useStore } from "../store/useStore";
 import { useNavigate } from "react-router-dom";
 
-const Header = () => {
+const Header = memo(() => {
   const store = useStore();
   const navigate = useNavigate();
 
@@ -22,6 +23,6 @@ const Header = () => {
       </Toolbar>
     </AppBar>
   );
-};
+});
 
 export default Header;

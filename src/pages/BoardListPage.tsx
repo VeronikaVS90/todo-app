@@ -199,3 +199,4 @@ const BoardListPage = observer(() => {
 });
 
 export default BoardListPage;
+export { BoardListPage };
