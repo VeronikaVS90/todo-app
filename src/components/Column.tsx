@@ -49,7 +49,7 @@ export const Column = memo(function Column({
     setMenuAnchorEl(e.currentTarget);
   };
 
-  const closeMenu = () => setMenuAnchorEl(null);
+  const closeMenu = useCallback(() => setMenuAnchorEl(null), []);
 
   const handleAdd = useCallback(() => {
     const title = newTitle.trim();
