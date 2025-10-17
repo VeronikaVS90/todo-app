@@ -42,7 +42,7 @@ export function useColumns(boardId: string) {
         LocalStorageService.set(LS_KEY, sorted);
         return sorted;
       } catch (error) {
-        console.error("❌ API Error in useColumns:", error);
+        console.error("API Error in useColumns:", error);
         // Fallback to localStorage on any error
         const saved = LocalStorageService.get<Column[]>(LS_KEY) || [];
         return sortCols(saved);

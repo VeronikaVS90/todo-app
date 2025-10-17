@@ -42,7 +42,7 @@ export const TaskCard = memo(function TaskCard({
     setMenuAnchorEl(e.currentTarget);
   };
 
-  const closeMenu = () => setMenuAnchorEl(null);
+  const closeMenu = useCallback(() => setMenuAnchorEl(null), []);
 
   const handleUpdateInline = useCallback(() => {
     const trimmed = editedTitle.trim();
@@ -54,12 +54,16 @@ export const TaskCard = memo(function TaskCard({
 
   const onMenuRename = useCallback(() => {
     closeMenu();
-    setModalOpen(true);
+    setTimeout(() => {
+      setModalOpen(true);
+    }, 0);
   }, [closeMenu]);
 
   const onMenuDelete = useCallback(() => {
     closeMenu();
-    remove.mutate({ id: String(task.id) });
+    setTimeout(() => {
+      remove.mutate({ id: String(task.id) });
+    }, 0);
   }, [closeMenu, remove, task.id]);
 
   const getSnippet = useCallback((s: string | null | undefined, max = 100) => {

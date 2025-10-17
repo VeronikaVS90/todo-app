@@ -14,7 +14,7 @@ export function useBoards() {
     queryFn: async () => {
       // If no API URL configured, use localStorage only
       if (!import.meta.env.VITE_API_BASE_URL) {
-        console.log("📦 No API configured, using localStorage");
+        console.log("No API configured, using localStorage");
         const savedData = LocalStorageService.get<Board[]>("boards") || [];
         return savedData.sort(
           (a, b) =>
@@ -24,20 +24,17 @@ export function useBoards() {
       }
 
       try {
-        console.log("📡 Fetching boards from API...");
+        console.log("Fetching boards from API...");
         const { data } = await api.get("/boards");
-        console.log("📦 Raw API response:", data);
+        console.log("Raw API response:", data);
 
         // Validate API response with Zod (non-blocking)
         let validatedData: Board[];
         try {
           validatedData = parseWithSchema(BoardArraySchema, data);
-          console.log("✅ Validation successful");
+          console.log("Validation successful");
         } catch (validationError) {
-          console.warn(
-            "⚠️ Validation failed, using raw data:",
-            validationError
-          );
+          console.warn("Validation failed, using raw data:", validationError);
           // If validation fails, use raw data as fallback
           validatedData = Array.isArray(data) ? data : [];
         }
@@ -62,11 +59,10 @@ export function useBoards() {
         LocalStorageService.set("boards", sorted);
         return sorted;
       } catch (error: unknown) {
-        console.error("❌ API Error:", error);
+        console.error("API Error:", error);
         // Always fallback to localStorage on any API error
-        console.log("💾 Returning data from localStorage due to API error");
-        const savedPositions =
-          LocalStorageService.get<Board[]>("boards") || [];
+        console.log("Returning data from localStorage due to API error");
+        const savedPositions = LocalStorageService.get<Board[]>("boards") || [];
         return savedPositions.sort(
           (a, b) =>
             (a.position ?? 0) - (b.position ?? 0) ||

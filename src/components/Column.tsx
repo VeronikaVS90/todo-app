@@ -80,7 +80,9 @@ export const Column = memo(function Column({
 
   const onMenuDelete = useCallback(() => {
     closeMenu();
-    remove.mutate({ id: columnId });
+    setTimeout(() => {
+      remove.mutate({ id: columnId });
+    }, 0);
   }, [closeMenu, remove, columnId]);
 
   return (

@@ -7,7 +7,7 @@ function reorderById(list: Column[], id: string, toIndex: number) {
   const arr = [...list];
   const fromIndex = arr.findIndex((c) => String(c.id) === String(id));
   if (fromIndex === -1) {
-    console.error("❌ Column not found:", id);
+    console.error("Column not found:", id);
     return arr;
   }
 

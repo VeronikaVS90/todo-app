@@ -5,10 +5,7 @@ export const BoardSchema = z
   .object({
     id: z.coerce.string(),
     title: z.string().trim().min(1, "Title is required"),
-    // Варіант 1: зберігати як Date (раджу)
     createdAt: z.coerce.date().optional(),
-    // Варіант 2 (якщо не хочеш Date):
-    // createdAt: z.union([z.string(), z.number()]).optional(),
     position: z.number().int().min(0).optional(),
   })
   .passthrough();

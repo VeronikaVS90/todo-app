@@ -46,7 +46,7 @@ export function useTasks(columnId: string) {
         LocalStorageService.set(LS, sorted);
         return sorted;
       } catch (error) {
-        console.error("❌ API Error in useTasks:", error);
+        console.error("API Error in useTasks:", error);
         // Fallback to localStorage on any error
         const saved = LocalStorageService.get<Task[]>(LS) || [];
         return saved.sort(
