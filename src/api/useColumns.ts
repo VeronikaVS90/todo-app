@@ -22,18 +22,31 @@ export function useColumns(boardId: string) {
   const query = useQuery<Column[], Error>({
     queryKey: key,
     queryFn: async () => {
-      const { data } = await api.get(`/columns?boardId=${boardId}`);
-      const validated = parseWithSchema(ColumnArraySchema, data);
+      // If no API URL configured, use localStorage only
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const saved = LocalStorageService.get<Column[]>(LS_KEY) || [];
+        return sortCols(saved);
+      }
 
-      const saved = LocalStorageService.get<Column[]>(LS_KEY) || [];
-      const merged = validated.map((c) => {
-        const hit = saved.find((s) => String(s.id) === String(c.id));
-        return hit ? { ...c, position: hit.position } : c;
-      });
+      try {
+        const { data } = await api.get(`/columns?boardId=${boardId}`);
+        const validated = parseWithSchema(ColumnArraySchema, data);
 
-      const sorted = sortCols(merged);
-      LocalStorageService.set(LS_KEY, sorted);
-      return sorted;
+        const saved = LocalStorageService.get<Column[]>(LS_KEY) || [];
+        const merged = validated.map((c) => {
+          const hit = saved.find((s) => String(s.id) === String(c.id));
+          return hit ? { ...c, position: hit.position } : c;
+        });
+
+        const sorted = sortCols(merged);
+        LocalStorageService.set(LS_KEY, sorted);
+        return sorted;
+      } catch (error) {
+        console.error("❌ API Error in useColumns:", error);
+        // Fallback to localStorage on any error
+        const saved = LocalStorageService.get<Column[]>(LS_KEY) || [];
+        return sortCols(saved);
+      }
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,

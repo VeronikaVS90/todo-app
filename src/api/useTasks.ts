@@ -17,23 +17,44 @@ export function useTasks(columnId: string) {
   const query = useQuery<Task[], Error>({
     queryKey: key,
     queryFn: async () => {
-      const { data } = await api.get(LIST_URL);
-      const all = parseWithSchema(TaskArraySchema, data);
-      const filtered = all.filter((t) => String(t.columnId) === colId);
+      // If no API URL configured, use localStorage only
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const saved = LocalStorageService.get<Task[]>(LS) || [];
+        return saved.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
+        );
+      }
 
-      const saved = LocalStorageService.get<Task[]>(LS) || [];
-      const merged = filtered.map((t) => {
-        const s = saved.find((x) => String(x.id) === String(t.id));
-        return s ? { ...t, position: s.position } : t;
-      });
+      try {
+        const { data } = await api.get(LIST_URL);
+        const all = parseWithSchema(TaskArraySchema, data);
+        const filtered = all.filter((t) => String(t.columnId) === colId);
 
-      const sorted = merged.sort(
-        (a, b) =>
-          (a.position ?? 0) - (b.position ?? 0) ||
-          String(a.id).localeCompare(String(b.id))
-      );
-      LocalStorageService.set(LS, sorted);
-      return sorted;
+        const saved = LocalStorageService.get<Task[]>(LS) || [];
+        const merged = filtered.map((t) => {
+          const s = saved.find((x) => String(x.id) === String(t.id));
+          return s ? { ...t, position: s.position } : t;
+        });
+
+        const sorted = merged.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
+        );
+        LocalStorageService.set(LS, sorted);
+        return sorted;
+      } catch (error) {
+        console.error("❌ API Error in useTasks:", error);
+        // Fallback to localStorage on any error
+        const saved = LocalStorageService.get<Task[]>(LS) || [];
+        return saved.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
+        );
+      }
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,

@@ -12,6 +12,17 @@ export function useBoards() {
   const query = useQuery<Board[], Error>({
     queryKey: key,
     queryFn: async () => {
+      // If no API URL configured, use localStorage only
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        console.log("📦 No API configured, using localStorage");
+        const savedData = LocalStorageService.get<Board[]>("boards") || [];
+        return savedData.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
+        );
+      }
+
       try {
         console.log("📡 Fetching boards from API...");
         const { data } = await api.get("/boards");
@@ -52,25 +63,15 @@ export function useBoards() {
         return sorted;
       } catch (error: unknown) {
         console.error("❌ API Error:", error);
-        // If API returns 404 or any error, return saved positions from localStorage
-        if (
-          error &&
-          typeof error === "object" &&
-          "response" in error &&
-          error.response &&
-          typeof error.response === "object" &&
-          "status" in error.response
-        ) {
-          console.log("💾 Returning data from localStorage due to API error");
-          const savedPositions =
-            LocalStorageService.get<Board[]>("boards") || [];
-          return savedPositions.sort(
-            (a, b) =>
-              (a.position ?? 0) - (b.position ?? 0) ||
-              String(a.id).localeCompare(String(b.id))
-          );
-        }
-        throw error;
+        // Always fallback to localStorage on any API error
+        console.log("💾 Returning data from localStorage due to API error");
+        const savedPositions =
+          LocalStorageService.get<Board[]>("boards") || [];
+        return savedPositions.sort(
+          (a, b) =>
+            (a.position ?? 0) - (b.position ?? 0) ||
+            String(a.id).localeCompare(String(b.id))
+        );
       }
     },
     refetchOnWindowFocus: false,
