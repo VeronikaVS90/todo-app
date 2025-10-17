@@ -73,7 +73,9 @@ export const Column = memo(function Column({
 
   const onMenuRename = useCallback(() => {
     closeMenu();
-    startInlineRename();
+    setTimeout(() => {
+      startInlineRename();
+    }, 0);
   }, [closeMenu, startInlineRename]);
 
   const onMenuDelete = useCallback(() => {
