@@ -58,6 +58,18 @@ export function useColumns(boardId: string) {
 
   const create = useMutation<Column, Error, { title: string }>({
     mutationFn: async (payload) => {
+      // If no API configured, create locally
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const newColumn: Column = {
+          id: String(Date.now()),
+          title: payload.title,
+          boardId,
+          position: 0,
+        };
+        return newColumn;
+      }
+
+      // Otherwise, use API
       const { data } = await api.post(`/columns`, { ...payload, boardId });
       return parseWithSchema(ColumnSchema, data);
     },
@@ -76,6 +88,15 @@ export function useColumns(boardId: string) {
     { prev?: Column[] }
   >({
     mutationFn: async ({ id, ...updates }) => {
+      // If no API configured, return updated column locally
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const current = qc.getQueryData<Column[]>(key) ?? [];
+        const column = current.find((c) => String(c.id) === String(id));
+        if (!column) throw new Error("Column not found");
+        return { ...column, ...updates };
+      }
+
+      // Otherwise, use API
       const { data } = await api.put(`/columns/${encodeURIComponent(id)}`, {
         ...updates,
         boardId,
@@ -115,6 +136,12 @@ export function useColumns(boardId: string) {
     { prev?: Column[] }
   >({
     mutationFn: async ({ id, toIndex }) => {
+      // If no API configured, just return (move handled in onMutate)
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, use API
       await api.put(`/columns/${encodeURIComponent(id)}`, {
         position: toIndex,
         boardId,
@@ -141,6 +168,12 @@ export function useColumns(boardId: string) {
 
   const remove = useMutation<void, Error, { id: string }, { prev?: Column[] }>({
     mutationFn: async ({ id }) => {
+      // If no API configured, just return (deletion handled in onMutate)
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, use API
       await api.delete(`/columns/${encodeURIComponent(id)}`);
     },
     onMutate: async ({ id }) => {

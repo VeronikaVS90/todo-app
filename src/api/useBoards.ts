@@ -82,8 +82,19 @@ export function useBoards() {
 
   const create = useMutation<Board, Error, { title: string }>({
     mutationFn: async (payload) => {
+      // If no API configured, create locally
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const newBoard: Board = {
+          id: String(Date.now()),
+          title: payload.title,
+          position: 0,
+          createdAt: new Date(),
+        };
+        return newBoard;
+      }
+
+      // Otherwise, use API
       const { data } = await api.post("/boards", payload);
-      // Validate response with Zod
       return parseWithSchema(BoardSchema, data);
     },
     onSuccess: (newBoard) => {
@@ -101,8 +112,16 @@ export function useBoards() {
     { prev?: Board[] }
   >({
     mutationFn: async ({ id, ...updates }) => {
+      // If no API configured, return updated board locally
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const current = qc.getQueryData<Board[]>(key) || [];
+        const board = current.find((b) => String(b.id) === String(id));
+        if (!board) throw new Error("Board not found");
+        return { ...board, ...updates };
+      }
+
+      // Otherwise, use API
       const { data } = await api.put(`/boards/${id}`, updates);
-      // Validate response with Zod
       return parseWithSchema(BoardSchema, data);
     },
     onMutate: async ({ id, title }) => {
@@ -122,12 +141,20 @@ export function useBoards() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: key });
+      if (import.meta.env.VITE_API_BASE_URL) {
+        qc.invalidateQueries({ queryKey: key });
+      }
     },
   });
 
   const remove = useMutation<void, Error, { id: string }, { prev?: Board[] }>({
     mutationFn: async ({ id }) => {
+      // If no API configured, just return (deletion handled in onMutate)
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, use API
       await api.delete(`/boards/${id}`);
     },
     onMutate: async ({ id }) => {
@@ -147,7 +174,9 @@ export function useBoards() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: key });
+      if (import.meta.env.VITE_API_BASE_URL) {
+        qc.invalidateQueries({ queryKey: key });
+      }
     },
   });
 

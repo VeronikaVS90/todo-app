@@ -14,6 +14,12 @@ export function useMoveTaskGlobal() {
     { prevFrom?: Task[]; prevTo?: Task[] }
   >({
     mutationFn: async ({ id, toColumnId, toIndex }) => {
+      // If no API configured, just return (move handled in onMutate)
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, use API
       await api.put(`/tasks/${encodeURIComponent(id)}`, {
         columnId: toColumnId,
         position: toIndex,

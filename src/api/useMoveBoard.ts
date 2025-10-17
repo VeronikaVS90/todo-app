@@ -31,6 +31,12 @@ export function useMoveBoard() {
       qc.setQueryData<Board[]>(key, optimistic);
       LocalStorageService.set("boards", optimistic);
 
+      // If no API configured, just use optimistic update
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, sync with API
       api
         .put(`/boards/${encodeURIComponent(id)}`, { position })
         .then(({ data }) => {

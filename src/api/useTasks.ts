@@ -69,6 +69,19 @@ export function useTasks(columnId: string) {
     { title: string; description?: string }
   >({
     mutationFn: async (payload) => {
+      // If no API configured, create locally
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const newTask: Task = {
+          id: String(Date.now()),
+          title: payload.title,
+          description: payload.description ?? "",
+          columnId: colId,
+          position: 0,
+        };
+        return newTask;
+      }
+
+      // Otherwise, use API
       const { data } = await api.post(LIST_URL, {
         ...payload,
         columnId: colId,
@@ -90,6 +103,15 @@ export function useTasks(columnId: string) {
     { id: string; title?: string; description?: string }
   >({
     mutationFn: async ({ id, ...updates }) => {
+      // If no API configured, return updated task locally
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        const current = qc.getQueryData<Task[]>(key) ?? [];
+        const task = current.find((t) => String(t.id) === String(id));
+        if (!task) throw new Error("Task not found");
+        return { ...task, ...updates };
+      }
+
+      // Otherwise, use API
       const { data } = await api.put(ITEM_URL(String(id)), updates);
       return parseWithSchema(TaskSchema, data);
     },
@@ -105,6 +127,12 @@ export function useTasks(columnId: string) {
 
   const remove = useMutation<void, Error, { id: string }, { prev?: Task[] }>({
     mutationFn: async ({ id }) => {
+      // If no API configured, just return (deletion handled in onMutate)
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, use API
       await api.delete(ITEM_URL(String(id)));
     },
     onMutate: async ({ id }) => {

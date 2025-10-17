@@ -33,6 +33,12 @@ export function useMoveColumn(boardId: string) {
       qc.setQueryData<Column[]>(key, next);
       LocalStorageService.set(`columns:${boardId}`, next);
 
+      // If no API configured, just use optimistic update
+      if (!import.meta.env.VITE_API_BASE_URL) {
+        return;
+      }
+
+      // Otherwise, sync with API
       api
         .put(`/columns/${encodeURIComponent(id)}`, {
           position,
