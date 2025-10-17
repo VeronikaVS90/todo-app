@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
 import {
   Container,
@@ -29,6 +29,7 @@ import { useMoveBoard } from "../api/useMoveBoard";
 const BoardListPage = observer(() => {
   const { data, isLoading, error, create, update, remove } = useBoards();
   const move = useMoveBoard();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,8 +38,15 @@ const BoardListPage = observer(() => {
   const onCreate = () => {
     const next = title.trim();
     if (!next) return;
-    create.mutate({ title: next });
-    setTitle("");
+    create.mutate(
+      { title: next },
+      {
+        onSuccess: (newBoard) => {
+          setTitle("");
+          navigate(`/boards/${newBoard.id}`);
+        },
+      }
+    );
   };
 
   const startEdit = (id: string, currentTitle: string) => {
