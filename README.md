@@ -42,8 +42,8 @@ npm run dev
 
 ## Features
 
-- Create/edit boards
-- Add columns to board
-- Add/edit tasks
-- Drag & drop for tasks and columns
+- Create/edit/delete boards
+- Add/edit/delete columns to board
+- Add/edit/delete tasks
+- Drag & drop for boards, columns and tasks
 - Dark/light theme
