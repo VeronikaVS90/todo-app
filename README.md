@@ -34,11 +34,13 @@ npm run dev
 
 ## Structure
 
-- `/src/pages` - pages (board list, board)
-- `/src/components` - components (Board, Column, TaskCard)
 - `/src/api` - React Query hooks and API
-- `/src/store` - MobX stores
+- `/src/components` - components (Board, Column, TaskCard)
+- `/src/lib` - Zod helpers
+- `/src/pages` - pages (board list, board)
 - `/src/schemas` - Zod validation schemas
+- `/src/services` - Local storage service
+- `/src/store` - MobX stores
 
 ## Features
 
